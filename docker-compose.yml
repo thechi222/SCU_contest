@@ -16,6 +16,8 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://powershare:powershare@db:5432/powershare
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       - db
 
@@ -23,6 +25,8 @@ services:
     build: ./frontend
     ports:
       - "8501:8501"
+    environment:
+      API_BASE_URL: http://backend:8000
     depends_on:
       - backend
 
