@@ -1,5 +1,6 @@
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
-from django.http import Http404
+from django.http import Http404, JsonResponse
+from django.views import defaults
 from rest_framework import exceptions
 from rest_framework.views import exception_handler
 
@@ -26,3 +27,19 @@ def api_exception_handler(exc, context):
     detail = data.get("detail", data) if isinstance(data, dict) else data
     response.data = {"detail": detail, "code": code}
     return response
+
+
+def _is_api_request(request) -> bool:
+    return request.path.startswith("/api/")
+
+
+def api_not_found(request, exception):
+    if _is_api_request(request):
+        return JsonResponse({"detail": "找不到資源", "code": "NOT_FOUND"}, status=404)
+    return defaults.page_not_found(request, exception)
+
+
+def api_server_error(request):
+    if _is_api_request(request):
+        return JsonResponse({"detail": "伺服器發生錯誤", "code": "SERVER_ERROR"}, status=500)
+    return defaults.server_error(request)

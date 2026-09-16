@@ -47,7 +47,7 @@ body {
   color: var(--color-primary);
 }
 
-#identity-switcher {
+#current-user {
   margin-left: auto;
 }
 

@@ -1,6 +1,6 @@
 import { api } from "./api.js";
 
-// 6.3 #1 機台列表:GET /api/machines,顯示規格、狀態與當前身分價格
+// 6.3 #3 機台列表:GET /api/machines,顯示規格與狀態
 async function renderMachineList() {
   // TODO
 }

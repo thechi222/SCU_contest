@@ -1,11 +1,16 @@
-import secrets
-
-from django.conf import settings
 from rest_framework.permissions import BasePermission
 
+from core.models import Machine
 
-class HasAgentToken(BasePermission):
+
+class IsAgent(BasePermission):
     def has_permission(self, request, view):
-        token = request.headers.get("X-Agent-Token", "")
-        expected = settings.AGENT_TOKEN
-        return bool(expected) and secrets.compare_digest(token.encode(), expected.encode())
+        return isinstance(request.auth, Machine)
+
+
+class HeartbeatMachineMatches(BasePermission):
+    message = "machine_id 與 Agent token 所屬機台不符"
+
+    def has_permission(self, request, view):
+        data = request.data
+        return isinstance(data, dict) and data.get("machine_id") == request.auth.pk

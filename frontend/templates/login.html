@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}登入{% endblock %}
+
+{% block nav %}{% endblock %}
+
+{% block content %}
+<section>
+  <h1>登入</h1>
+  <form id="login-form">
+    <label>Email <input type="email" name="email" autocomplete="username" required></label>
+    <label>密碼 <input type="password" name="password" autocomplete="current-password" required></label>
+    <button type="submit">登入</button>
+  </form>
+  <p id="login-error" role="alert"></p>
+</section>
+{% endblock %}
+
+{% block auth_script %}{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/login.js' %}"></script>
+{% endblock %}

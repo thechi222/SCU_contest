@@ -7,7 +7,7 @@ class BookingListCreateView(APIView):
         raise NotImplementedError
 
     def post(self, request):
-        """POST /api/bookings(BookingCreateSerializer)→ BookingSerializer"""
+        """POST /api/bookings(BookingCreateSerializer)→ 201 BookingSerializer,以 services.create_booking 建立"""
         raise NotImplementedError
 
 
@@ -19,7 +19,7 @@ class BookingDetailView(APIView):
 
 class BookingCancelView(APIView):
     def post(self, request, booking_id):
-        """POST /api/bookings/{id}/cancel → BookingSerializer"""
+        """POST /api/bookings/{id}/cancel → BookingSerializer(僅 pending 可取消)"""
         raise NotImplementedError
 
 

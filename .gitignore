@@ -7,4 +7,5 @@ venv/
 *.sqlite3
 staticfiles/
 .pytest_cache/
+*credentials*.csv
 .DS_Store

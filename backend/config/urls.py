@@ -13,6 +13,10 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("core.urls")),
     path("", page("index.html"), name="index"),
+    path("login/", page("login.html"), name="login"),
     path("bookings/", page("bookings.html"), name="bookings"),
     path("assistant/", page("assistant.html"), name="assistant"),
 ]
+
+handler404 = "core.exceptions.api_not_found"
+handler500 = "core.exceptions.api_server_error"

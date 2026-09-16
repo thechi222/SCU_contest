@@ -1,4 +1,4 @@
-// 所有 API 呼叫一律經由本模組(README §4.8)
+// 所有 API 呼叫一律經由本模組(README §4.9)
 
 export class ApiError extends Error {
   constructor(status, detail, code) {

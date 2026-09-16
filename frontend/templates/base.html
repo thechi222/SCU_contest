@@ -9,19 +9,23 @@
 <body>
   <header class="site-header">
     <a class="brand" href="{% url 'index' %}">PowerShare</a>
+    {% block nav %}
     <nav class="site-nav">
       <a href="{% url 'index' %}">機台列表</a>
       <a href="{% url 'bookings' %}">我的預約</a>
       <a href="{% url 'assistant' %}">AI 助理</a>
     </nav>
-    <div id="identity-switcher"></div>
+    <div id="current-user"></div>
+    {% endblock %}
   </header>
 
   <main class="container">
     {% block content %}{% endblock %}
   </main>
 
+  {% block auth_script %}
   <script type="module" src="{% static 'js/auth.js' %}"></script>
+  {% endblock %}
   {% block scripts %}{% endblock %}
 </body>
 </html>
