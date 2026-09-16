@@ -1,7 +1,15 @@
-from app.models import AIAssistResponse, UsageReport
+from dataclasses import dataclass
+
+from core.models import Booking, UsageReport, User
 
 
-def handle_ai_request(user_id: str, message: str) -> AIAssistResponse:
+@dataclass
+class AIAssistResult:
+    reply: str                   # 給使用者的自然語言回覆
+    booking: Booking | None      # 成功建立預約時帶回
+
+
+def handle_ai_request(user: User, message: str) -> AIAssistResult:
     """用 LLM function calling 解析 message,可呼叫下列工具函式:
 
       list_available_machines(need_gpu: bool,
@@ -9,10 +17,11 @@ def handle_ai_request(user_id: str, message: str) -> AIAssistResponse:
                               start: datetime,
                               end: datetime) -> list[Machine]
 
-      create_booking(user_id: str, machine_id: str,
+      create_booking(user: User, machine_id: str,
                      start: datetime, end: datetime) -> Booking
 
     回傳自然語言回覆 + (若成功建立)對應的 Booking。
+    由 AIAssistView 以 AIAssistResponseSerializer 序列化後回傳。
     """
     ...
 

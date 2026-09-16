@@ -4,4 +4,7 @@ __pycache__/
 venv/
 .env
 *.db
+*.sqlite3
+staticfiles/
+.pytest_cache/
 .DS_Store

@@ -9,26 +9,29 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U powershare -d powershare"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
-  backend:
-    build: ./backend
+  web:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://powershare:powershare@db:5432/powershare
+      DATABASE_URL: postgres://powershare:powershare@db:5432/powershare
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-dev-only}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      AGENT_TOKEN: ${AGENT_TOKEN:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
-      - db
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "8501:8501"
-    environment:
-      API_BASE_URL: http://backend:8000
-    depends_on:
-      - backend
+      db:
+        condition: service_healthy
 
 volumes:
   db_data:

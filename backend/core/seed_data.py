@@ -21,3 +21,12 @@ SEED_MACHINES = [
         "price_per_hour": {"student": 5, "staff": 8, "external": 20},
     },
 ]
+
+# 示範帳號僅供開發環境使用
+SEED_PASSWORD = "demo1234"
+
+SEED_USERS = [
+    {"email": "demo.student@scu.edu.tw", "name": "示範學生", "role": "student", "credit": 1000},
+    {"email": "demo.staff@scu.edu.tw", "name": "示範教職員", "role": "staff", "credit": 1000},
+    {"email": "demo.guest@example.com", "name": "示範校外人士", "role": "external", "credit": 1000},
+]

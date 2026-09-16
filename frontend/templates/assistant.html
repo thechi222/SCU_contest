@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}AI 助理{% endblock %}
+
+{% block content %}
+<section>
+  <h1>AI 預約助理</h1>
+  <div id="chat-log"></div>
+  <form id="chat-form">
+    <input type="text" name="message" placeholder="例如:本週五下午兩小時,需要 16GB VRAM" required>
+    <button type="submit">送出</button>
+  </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/assistant.js' %}"></script>
+{% endblock %}

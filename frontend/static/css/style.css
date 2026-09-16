@@ -1,0 +1,78 @@
+:root {
+  --color-text: #1f2328;
+  --color-muted: #59636e;
+  --color-border: #d1d9e0;
+  --color-surface: #f6f8fa;
+  --color-primary: #1f6feb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  color: var(--color-text);
+  background: #fff;
+}
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.brand {
+  font-weight: 700;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.site-nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.site-nav a {
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.site-nav a:hover {
+  color: var(--color-primary);
+}
+
+#identity-switcher {
+  margin-left: auto;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+section + section {
+  margin-top: 2rem;
+}
+
+form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+button {
+  padding: 0.4rem 1rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--color-primary);
+  color: #fff;
+  cursor: pointer;
+}
