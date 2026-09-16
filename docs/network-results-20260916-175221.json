@@ -1,0 +1,14 @@
+{
+  "scope": "one real GPU agent, actual TCP connections cut by local test proxy; recovery on same physical GPU",
+  "started_at": 1789552275.7850413,
+  "gpu_release_seconds": 5.517522599999211,
+  "offline_and_retry_seconds": 20.412357299996074,
+  "finished_at": 1789552341.9297736,
+  "job_summary": {
+    "id": "830908c28a1f4114a9854a1ae254df5a",
+    "status": "failed",
+    "attempt_count": 3,
+    "error": "機主收回、工作程序停止或分享條件不符"
+  },
+  "review_note": "首次測試釋放與重排達標，但重連後達到重試上限。後續成功不能取代此失敗；現場穩定性仍待驗證。"
+}

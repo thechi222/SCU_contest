@@ -1,0 +1,204 @@
+{
+  "hardware": {
+    "gpu_uuid": "GPU-4d0b3ce5-c361-92eb-3917-fdccea374286",
+    "gpu_name": "NVIDIA GeForce RTX 3050 4GB Laptop GPU",
+    "memory_mb": 4096,
+    "driver": "580.97",
+    "os": "Windows-11-10.0.26200-SP0"
+  },
+  "tested_at": 1789551913.504279,
+  "jobs": [
+    {
+      "id": "e99ac0f466f94c74b7a6a3551fec0969",
+      "batch_id": "d939670e46a74229bc82d9e832783c49",
+      "user_id": "dfcb12d7c27849a4930270b77cabbccf",
+      "kind": "asr",
+      "profile": "whisper-small-v1",
+      "filename": "introduction.wav",
+      "input_bytes": 719374,
+      "params": {},
+      "status": "completed",
+      "attempt_count": 1,
+      "active_attempt_id": "c6065c4df3ab4438ac02098cdf10c8f8",
+      "stage": "處理完成",
+      "progress": 1.0,
+      "error": null,
+      "created_at": 1789551860.8695889,
+      "completed_at": 1789551871.5537152,
+      "batch_name": "單機 CUDA 驗證 · asr",
+      "is_demo": 1,
+      "owner_name": "設備提供者",
+      "artifacts": [
+        {
+          "id": "fe02859a971540ed98a4baaa0f85df80",
+          "name": "transcript.txt",
+          "media_type": "text/plain; charset=utf-8",
+          "size": 192
+        },
+        {
+          "id": "ef94079123f145bc89893db748b85ecf",
+          "name": "subtitles.srt",
+          "media_type": "text/plain; charset=utf-8",
+          "size": 357
+        }
+      ],
+      "attempts": [
+        {
+          "id": "c6065c4df3ab4438ac02098cdf10c8f8",
+          "node_id": "1fece22f0c1c4b1eb0c2fc65ce9a59bf",
+          "node_name": "實機 RTX 3050 筆電",
+          "gpu_name": "NVIDIA GeForce RTX 3050 4GB Laptop GPU",
+          "started_at": 1789551865.8339899,
+          "ended_at": 1789551871.5537152,
+          "outcome": "completed",
+          "error": null,
+          "gpu_verified": 1,
+          "metrics": {
+            "profile": "whisper-small-v1",
+            "cuda_verified": true,
+            "gpu_seconds": 1.467064422000476,
+            "engine": "CTranslate2 4.6.0",
+            "compute_type": "int8_float16",
+            "audio_seconds": 16.3113125,
+            "language": "zh",
+            "timing": "CUDA inference wall time including decoding",
+            "image_id": "sha256:f189f0b4324bed20b48e6d9258e5a2309ac93a6f8cdcea9eae782ff15a1ca6f0",
+            "gpu_uuid": "GPU-4d0b3ce5-c361-92eb-3917-fdccea374286",
+            "model_manifest": "16d2b645fd413a4bf317c9fcb49696a829f0e2d346278c85d249e5e060c2c641"
+          }
+        }
+      ],
+      "elapsed_including_download_seconds": 11.186803700002201
+    },
+    {
+      "id": "0a91658902274706b6242d995ac35890",
+      "batch_id": "a21b365588cc4251a108fb30b47ac024",
+      "user_id": "dfcb12d7c27849a4930270b77cabbccf",
+      "kind": "upscale",
+      "profile": "realesrgan-x2-v1",
+      "filename": "calibration.png",
+      "input_bytes": 10265,
+      "params": {},
+      "status": "completed",
+      "attempt_count": 1,
+      "active_attempt_id": "c18d867a2a26427ca25e3c61dcc164fa",
+      "stage": "處理完成",
+      "progress": 1.0,
+      "error": null,
+      "created_at": 1789551872.0043766,
+      "completed_at": 1789551882.6977746,
+      "batch_name": "單機 CUDA 驗證 · upscale",
+      "is_demo": 1,
+      "owner_name": "設備提供者",
+      "artifacts": [
+        {
+          "id": "60d76fd54b044d01812d529bc8de7df9",
+          "name": "upscaled.png",
+          "media_type": "image/png",
+          "size": 527407
+        }
+      ],
+      "attempts": [
+        {
+          "id": "c18d867a2a26427ca25e3c61dcc164fa",
+          "node_id": "1fece22f0c1c4b1eb0c2fc65ce9a59bf",
+          "node_name": "實機 RTX 3050 筆電",
+          "gpu_name": "NVIDIA GeForce RTX 3050 4GB Laptop GPU",
+          "started_at": 1789551875.857069,
+          "ended_at": 1789551882.6977746,
+          "outcome": "completed",
+          "error": null,
+          "gpu_verified": 1,
+          "metrics": {
+            "profile": "realesrgan-x2-v1",
+            "cuda_verified": true,
+            "gpu_seconds": 0.7377396499996394,
+            "engine": "torch 2.1.2+cu121",
+            "device": "NVIDIA GeForce RTX 3050 4GB Laptop GPU",
+            "peak_vram_mb": 78.3310546875,
+            "tile": 128,
+            "scale": 2,
+            "timing": "synchronized CUDA inference wall time",
+            "image_id": "sha256:058714d0eae7a6ab7c387b270a33cfde29acc63e813f768fbf367239f1510a45",
+            "gpu_uuid": "GPU-4d0b3ce5-c361-92eb-3917-fdccea374286",
+            "model_manifest": "9d4b6d87a58a41f340512513e0972d21e7daaa878c703fd02977156d1a3a210f"
+          }
+        }
+      ],
+      "elapsed_including_download_seconds": 11.118917799998599
+    },
+    {
+      "id": "010b4afcc22f4175b62534a4758be3e0",
+      "batch_id": "8e66a806b02340fa82ef82c7b427d940",
+      "user_id": "dfcb12d7c27849a4930270b77cabbccf",
+      "kind": "upscale",
+      "profile": "realesrgan-x2-v1",
+      "filename": "off-test.png",
+      "input_bytes": 280624,
+      "params": {},
+      "status": "completed",
+      "attempt_count": 2,
+      "active_attempt_id": "34a68517fef34644a688242be6dc3c5b",
+      "stage": "處理完成",
+      "progress": 1.0,
+      "error": null,
+      "created_at": 1789551883.1707516,
+      "completed_at": 1789551912.750419,
+      "batch_name": "實機 OFF 與重試驗證",
+      "is_demo": 1,
+      "owner_name": "設備提供者",
+      "artifacts": [
+        {
+          "id": "f119fffe6c8c491db4e32f6f2e2421ba",
+          "name": "upscaled.png",
+          "media_type": "image/png",
+          "size": 5195749
+        }
+      ],
+      "attempts": [
+        {
+          "id": "f88b9feeede84112b54181864a97f39e",
+          "node_id": "1fece22f0c1c4b1eb0c2fc65ce9a59bf",
+          "node_name": "實機 RTX 3050 筆電",
+          "gpu_name": "NVIDIA GeForce RTX 3050 4GB Laptop GPU",
+          "started_at": 1789551885.8562982,
+          "ended_at": 1789551891.3133972,
+          "outcome": "interrupted",
+          "error": "機主已收回設備",
+          "gpu_verified": 0,
+          "metrics": {}
+        },
+        {
+          "id": "34a68517fef34644a688242be6dc3c5b",
+          "node_id": "1fece22f0c1c4b1eb0c2fc65ce9a59bf",
+          "node_name": "實機 RTX 3050 筆電",
+          "gpu_name": "NVIDIA GeForce RTX 3050 4GB Laptop GPU",
+          "started_at": 1789551900.8813367,
+          "ended_at": 1789551912.750419,
+          "outcome": "completed",
+          "error": null,
+          "gpu_verified": 1,
+          "metrics": {
+            "profile": "realesrgan-x2-v1",
+            "cuda_verified": true,
+            "gpu_seconds": 5.721140399000433,
+            "engine": "torch 2.1.2+cu121",
+            "device": "NVIDIA GeForce RTX 3050 4GB Laptop GPU",
+            "peak_vram_mb": 149.00439453125,
+            "tile": 128,
+            "scale": 2,
+            "timing": "synchronized CUDA inference wall time",
+            "image_id": "sha256:058714d0eae7a6ab7c387b270a33cfde29acc63e813f768fbf367239f1510a45",
+            "gpu_uuid": "GPU-4d0b3ce5-c361-92eb-3917-fdccea374286",
+            "model_manifest": "9d4b6d87a58a41f340512513e0972d21e7daaa878c703fd02977156d1a3a210f"
+          }
+        }
+      ],
+      "elapsed_including_download_seconds": 30.317972500000906,
+      "off_release_seconds": 4.934111500006111,
+      "baseline_vram_mb": 131.0,
+      "peak_vram_mb": 437.52734375,
+      "recovery_scope": "same physical GPU after re-enable"
+    }
+  ]
+}

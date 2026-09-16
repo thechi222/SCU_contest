@@ -1,0 +1,75 @@
+{
+  "scope": "one real GPU agent, actual TCP connections cut by local test proxy; recovery on same physical GPU",
+  "started_at": 1789571733.6190894,
+  "gpu_release_seconds": 5.152291900005366,
+  "offline_and_retry_seconds": 20.23896490000334,
+  "job": {
+    "id": "df3bafb2fb73495ba388e3893b5f867c",
+    "batch_id": "28b0387ff1e04f83bd7e9525a6902d15",
+    "user_id": "dfcb12d7c27849a4930270b77cabbccf",
+    "kind": "upscale",
+    "profile": "realesrgan-x2-v1",
+    "filename": "network-test.png",
+    "input_bytes": 786073,
+    "params": {},
+    "status": "completed",
+    "attempt_count": 2,
+    "active_attempt_id": "cf4a6bd4d16e445088cfe0d1b22b0255",
+    "stage": "處理完成",
+    "progress": 1.0,
+    "error": null,
+    "created_at": 1789571733.8039699,
+    "completed_at": 1789571796.384287,
+    "batch_name": "實機 TCP 斷線與恢復驗證",
+    "is_demo": 1,
+    "owner_name": "設備提供者",
+    "artifacts": [
+      {
+        "id": "284a9b94c66c44458890949d3cb2b9b4",
+        "name": "upscaled.png",
+        "media_type": "image/png",
+        "size": 10042927
+      }
+    ],
+    "attempts": [
+      {
+        "id": "b61a1b9e137b43c9bafa10f071d50dc9",
+        "node_id": "1fece22f0c1c4b1eb0c2fc65ce9a59bf",
+        "node_name": "實機 RTX 3050 筆電",
+        "gpu_name": "NVIDIA GeForce RTX 3050 4GB Laptop GPU",
+        "started_at": 1789571738.670411,
+        "ended_at": 1789571768.946367,
+        "outcome": "interrupted",
+        "error": "設備未在期限內回報，工作已收回",
+        "gpu_verified": 0,
+        "metrics": {}
+      },
+      {
+        "id": "cf4a6bd4d16e445088cfe0d1b22b0255",
+        "node_id": "1fece22f0c1c4b1eb0c2fc65ce9a59bf",
+        "node_name": "實機 RTX 3050 筆電",
+        "gpu_name": "NVIDIA GeForce RTX 3050 4GB Laptop GPU",
+        "started_at": 1789571773.747775,
+        "ended_at": 1789571796.384287,
+        "outcome": "completed",
+        "error": null,
+        "gpu_verified": 1,
+        "metrics": {
+          "profile": "realesrgan-x2-v1",
+          "cuda_verified": true,
+          "gpu_seconds": 11.703450277000229,
+          "engine": "torch 2.1.2+cu121",
+          "device": "NVIDIA GeForce RTX 3050 4GB Laptop GPU",
+          "peak_vram_mb": 266.00439453125,
+          "tile": 128,
+          "scale": 2,
+          "timing": "synchronized CUDA inference wall time",
+          "image_id": "sha256:058714d0eae7a6ab7c387b270a33cfde29acc63e813f768fbf367239f1510a45",
+          "gpu_uuid": "GPU-4d0b3ce5-c361-92eb-3917-fdccea374286",
+          "model_manifest": "9d4b6d87a58a41f340512513e0972d21e7daaa878c703fd02977156d1a3a210f"
+        }
+      }
+    ]
+  },
+  "finished_at": 1789571796.7348735
+}
