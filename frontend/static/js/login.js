@@ -1,9 +1,19 @@
 import { api, ApiError } from "./api.js";
 
-// 6.3 #1 登入:POST /api/auth/login,成功後導向首頁;失敗時於 #login-error 顯示原因
-async function handleLoginSubmit(event) {
-  event.preventDefault();
-  // TODO
-}
+const form = document.getElementById("login-form");
+const error = document.getElementById("login-error");
 
-document.getElementById("login-form").addEventListener("submit", handleLoginSubmit);
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  error.textContent = "";
+  const data = new FormData(form);
+  try {
+    await api("/api/auth/login", {
+      method: "POST",
+      body: { email: data.get("email"), password: data.get("password") },
+    });
+    window.location.assign("/");
+  } catch (err) {
+    error.textContent = err instanceof ApiError ? err.message : "登入失敗,請稍後再試";
+  }
+});

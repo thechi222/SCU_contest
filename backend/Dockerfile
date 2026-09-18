@@ -14,7 +14,9 @@ COPY frontend frontend
 WORKDIR /app/backend
 
 RUN DJANGO_DEBUG=1 python manage.py collectstatic --noinput \
-    && useradd --create-home app
+    && useradd --create-home app \
+    && mkdir -p /app/data \
+    && chown -R app /app/data
 
 USER app
 

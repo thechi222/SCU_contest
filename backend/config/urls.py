@@ -14,8 +14,9 @@ urlpatterns = [
     path("api/", include("core.urls")),
     path("", page("index.html"), name="index"),
     path("login/", page("login.html"), name="login"),
-    path("bookings/", page("bookings.html"), name="bookings"),
+    path("nodes/", page("nodes.html"), name="nodes"),
     path("assistant/", page("assistant.html"), name="assistant"),
+    path("display/", page("display.html"), name="display"),
 ]
 
 handler404 = "core.exceptions.api_not_found"

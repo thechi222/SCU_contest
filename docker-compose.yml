@@ -8,8 +8,11 @@ x-app: &app
     DJANGO_DEBUG: "0"
     DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
     DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+    DJANGO_DATA_DIR: /app/data
     ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  volumes:
+    - app_data:/app/data
 
 services:
   db:
@@ -50,3 +53,4 @@ services:
 
 volumes:
   db_data:
+  app_data:

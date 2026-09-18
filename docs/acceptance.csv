@@ -1,0 +1,18 @@
+項目,驗收方式,狀態,證據,備註
+派工協定（搶單、租約、重試上限）,tests/test_dispatch.py,已驗證,pytest 通過,模擬節點，不代表實機
+Agent 通道（配對、心跳、領取、回報）,tests/test_agent.py,已驗證,pytest 通過,以測試用戶端呼叫，未接真實 Agent
+機主收回設備後工作重新排隊,tests/test_dispatch.py::test_owner_reclaim_stops_run_and_requeues,已驗證,pytest 通過,
+逾時結果不覆寫新狀態,tests/test_dispatch.py::test_result_from_expired_attempt_is_rejected,已驗證,pytest 通過,
+上傳限制與每日額度,tests/test_jobs.py,已驗證,pytest 通過,
+權限（無法存取他人工作與設備）,tests/test_jobs.py,已驗證,pytest 通過,
+錯誤格式與 JSON 404/500,tests/test_contract.py,已驗證,pytest 通過,
+對外部署 CSRF 設定,模擬 HTTPS tunnel 的 Django 測試用戶端,已驗證,chi_test 分支修正紀錄,未實際架設 tunnel
+DEBUG 關閉後靜態檔正常,本機 runserver + WhiteNoise,已驗證,chi_test 分支修正紀錄,未驗證 gunicorn（Windows 無法執行）
+Docker 映像建置與 compose 啟動,docker compose up --build,待驗證,,本機 Docker Desktop 未啟動
+真實 Agent 對本分支 API 連線,agent pair / run,待驗證,,Agent 由 codex 分支移植，端點已對齊但未實跑
+GPU 容器實跑（ASR / 放大）,agent prepare 後送出工作,待驗證,,需 NVIDIA GPU 與 Docker
+三台機台同時派工,scripts/benchmark.py 單機與三機比較,待驗證,,需三台實機
+效能比較（單機 vs 三機）,scripts/benchmark.py 產生的 JSON,待驗證,,同上
+成果品質評估,以真實素材人工檢視,待驗證,,demo-assets 為合成素材，不代表品質
+使用者測試,README §6.5,待驗證,,10/13–10/19 執行
+AI 助理,tests 待補,未實作,,backend/core/ai_assistant.py 為介面定義

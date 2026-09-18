@@ -1,9 +1,25 @@
-import { api, ApiError } from "./api.js";
+import { api, ApiError, element } from "./api.js";
 
-// 6.3 #2 頁首登入狀態:GET /api/auth/me 顯示使用者名稱與登出按鈕(POST /api/auth/logout);
-// 收到 NOT_AUTHENTICATED 時導向 /login/
+const container = document.getElementById("current-user");
+
 async function renderCurrentUser() {
-  // TODO
+  try {
+    const user = await api("/api/auth/me");
+    container.replaceChildren(element("span", "user-name", `${user.name}(${user.role}）`));
+
+    const logout = element("button", "link-button", "登出");
+    logout.addEventListener("click", async () => {
+      await api("/api/auth/logout", { method: "POST" });
+      window.location.assign("/login/");
+    });
+    container.append(logout);
+  } catch (err) {
+    if (err instanceof ApiError && err.code === "NOT_AUTHENTICATED") {
+      window.location.assign("/login/");
+      return;
+    }
+    throw err;
+  }
 }
 
 renderCurrentUser();

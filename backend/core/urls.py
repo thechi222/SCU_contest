@@ -1,20 +1,27 @@
 from django.urls import path
 
-from core.views import agent, ai, auth, bookings, machines
+from core.views import agent, ai, auth, batches, jobs, nodes, state
 
 urlpatterns = [
+    path("health", state.HealthView.as_view()),
+    path("state", state.StateView.as_view()),
     path("auth/login", auth.LoginView.as_view()),
     path("auth/logout", auth.LogoutView.as_view()),
     path("auth/me", auth.MeView.as_view()),
-    path("machines", machines.MachineListView.as_view()),
-    path("machines/<str:machine_id>/availability", machines.MachineAvailabilityView.as_view()),
-    path("machines/<str:machine_id>/metrics", machines.MachineMetricsView.as_view()),
-    path("bookings", bookings.BookingListCreateView.as_view()),
-    path("bookings/<uuid:booking_id>", bookings.BookingDetailView.as_view()),
-    path("bookings/<uuid:booking_id>/cancel", bookings.BookingCancelView.as_view()),
-    path("bookings/<uuid:booking_id>/report", bookings.BookingReportView.as_view()),
+    path("auth/password", auth.PasswordChangeView.as_view()),
+    path("batches", batches.BatchCreateView.as_view()),
+    path("batches/<uuid:batch_id>/download", batches.BatchDownloadView.as_view()),
+    path("jobs/<uuid:job_id>/cancel", jobs.JobCancelView.as_view()),
+    path("jobs/<uuid:job_id>/retry", jobs.JobRetryView.as_view()),
+    path("jobs/<uuid:job_id>/input", jobs.JobInputView.as_view()),
+    path("artifacts/<uuid:artifact_id>", jobs.ArtifactDownloadView.as_view()),
+    path("pairing-codes", nodes.PairingCodeView.as_view()),
+    path("nodes/<uuid:node_id>", nodes.NodeDetailView.as_view()),
+    path("agent/pair", agent.PairView.as_view()),
     path("agent/heartbeat", agent.HeartbeatView.as_view()),
-    path("agent/tasks/claim", agent.TaskClaimView.as_view()),
-    path("agent/tasks/<uuid:task_id>/result", agent.TaskResultView.as_view()),
+    path("agent/claim", agent.ClaimView.as_view()),
+    path("agent/attempts/<uuid:attempt_id>/input", agent.AttemptInputView.as_view()),
+    path("agent/attempts/<uuid:attempt_id>/complete", agent.AttemptCompleteView.as_view()),
+    path("agent/attempts/<uuid:attempt_id>/fail", agent.AttemptFailView.as_view()),
     path("ai/assist", ai.AIAssistView.as_view()),
 ]

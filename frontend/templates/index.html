@@ -1,21 +1,32 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}機台列表{% endblock %}
+{% block title %}工作台{% endblock %}
 
 {% block content %}
 <section>
-  <h1>機台列表</h1>
-  <div id="machine-list"></div>
+  <h1>送出工作</h1>
+  <form id="submit-form">
+    <label>任務類型
+      <select name="kind" required>
+        <option value="asr">語音轉逐字稿與字幕</option>
+        <option value="upscale">圖片 2 倍放大</option>
+      </select>
+    </label>
+    <label>批次名稱 <input type="text" name="name" required></label>
+    <label>檔案 <input type="file" name="files" multiple required></label>
+    <button type="submit">送出</button>
+  </form>
+  <p id="submit-limits"></p>
+  <p id="submit-error" role="alert"></p>
 </section>
 
 <section>
-  <h2>即時使用率</h2>
-  <canvas id="usage-chart"></canvas>
+  <h2>我的工作</h2>
+  <div id="job-list"></div>
 </section>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
-<script type="module" src="{% static 'js/machines.js' %}"></script>
+<script type="module" src="{% static 'js/workbench.js' %}"></script>
 {% endblock %}

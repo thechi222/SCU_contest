@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}大螢幕{% endblock %}
+
+{% block content %}
+<section>
+  <h1>即時狀態</h1>
+  <div id="display-nodes"></div>
+  <div id="display-queue"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/display.js' %}"></script>
+{% endblock %}

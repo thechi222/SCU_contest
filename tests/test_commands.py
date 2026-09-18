@@ -7,18 +7,17 @@ import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-from core.models import AvailabilityWindow, Machine, User
+from core.models import User
 
 
 @pytest.mark.django_db
-def test_seed_does_not_overwrite_existing_data():
+def test_seed_creates_demo_accounts_once():
     call_command("seed", stdout=io.StringIO())
-    Machine.objects.filter(id="lab-gpu-01").update(status="offline")
+    User.objects.filter(email="demo.student@scu.edu.tw").update(name="改過的名字")
     call_command("seed", stdout=io.StringIO())
 
-    assert Machine.objects.get(id="lab-gpu-01").status == "offline"
-    assert AvailabilityWindow.objects.filter(machine_id="lab-gpu-01").count() == 1
-    assert not User.objects.exists()
+    assert User.objects.count() == 2
+    assert User.objects.get(email="demo.student@scu.edu.tw").name == "改過的名字"
 
 
 @pytest.mark.django_db

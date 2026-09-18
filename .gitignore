@@ -6,6 +6,9 @@ venv/
 *.db
 *.sqlite3
 staticfiles/
+backend/data/
+.agent/
+release/
 .pytest_cache/
 *credentials*.csv
 .DS_Store

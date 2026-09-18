@@ -76,3 +76,87 @@ button {
   color: #fff;
   cursor: pointer;
 }
+
+.link-button {
+  padding: 0.15rem 0.6rem;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-primary);
+  font-size: 0.85rem;
+}
+
+.batch {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.job-row,
+.node-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.job-name,
+.node-name {
+  min-width: 12rem;
+  font-weight: 600;
+}
+
+.status {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-surface);
+  font-size: 0.8rem;
+}
+
+.status-running,
+.status-loading,
+.status-online {
+  background: #dcfce7;
+}
+
+.status-failed,
+.status-offline {
+  background: #fee2e2;
+}
+
+.job-stage,
+.job-error,
+.node-owner,
+.node-local,
+.empty {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+#display-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.display-card {
+  flex: 1 1 14rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.display-usage {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0.25rem 0;
+}
+
+.display-queue-text {
+  margin-top: 1.5rem;
+  font-size: 1.2rem;
+}

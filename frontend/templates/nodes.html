@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}我的設備{% endblock %}
+
+{% block content %}
+<section>
+  <h1>共享我的 GPU</h1>
+  <p>在機台完成 <code>prepare</code> 後,取得一次性配對碼,於機台執行 <code>agent pair</code>。配對碼 10 分鐘內有效。</p>
+  <button id="pairing-code-button">取得配對碼</button>
+  <p id="pairing-code" role="status"></p>
+</section>
+
+<section>
+  <h2>設備狀態</h2>
+  <div id="node-list"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/nodes.js' %}"></script>
+{% endblock %}

@@ -101,6 +101,21 @@ TIME_ZONE = "Asia/Taipei"
 USE_I18N = True
 USE_TZ = True
 
+# 使用者上傳與成果檔案。不經 MEDIA_URL 直接對外,一律由通過權限檢查的 view 提供
+MEDIA_ROOT = Path(os.environ.get("DJANGO_DATA_DIR", BASE_DIR / "data")).resolve()
+
+# 派工參數(README §4.5)
+LEASE_SECONDS = 20.0            # 一次派工的租約長度
+HEARTBEAT_SECONDS = 5.0         # Agent 心跳間隔
+MAX_JOB_ATTEMPTS = 3            # 含首次執行,最多三次
+NODE_OFFLINE_SECONDS = 30       # 超過此秒數沒有心跳即視為未開放
+
+# 上傳限制(README §4.4)
+MAX_FILE_BYTES = 50 * 1024 * 1024
+MAX_BATCH_FILES = 20
+MAX_BATCH_BYTES = 150 * 1024 * 1024
+MAX_IMAGE_SIZE = (2048, 2048)   # 放大任務的原圖尺寸上限
+
 STATIC_URL = "static/"
 STATICFILES_DIRS = [FRONTEND_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
