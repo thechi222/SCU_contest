@@ -2,17 +2,25 @@
 {% load static %}
 
 {% block title %}我的設備{% endblock %}
+{% block breadcrumb_current %}我的設備{% endblock %}
 
 {% block content %}
-<section>
-  <h1>共享我的 GPU</h1>
-  <p>在機台完成 <code>prepare</code> 後,取得一次性配對碼,於機台執行 <code>agent pair</code>。配對碼 10 分鐘內有效。</p>
+<h1>我的設備</h1>
+
+<section class="card">
+  <h2>共享我的 GPU</h2>
+  <p>
+    請先在機台執行 <code>agent prepare</code> 完成模型下載與 CUDA 自我測試,再取得一次性配對碼,
+    於機台執行 <code>agent pair</code>。配對碼 10 分鐘內有效,且只會顯示一次。
+  </p>
   <button id="pairing-code-button">取得配對碼</button>
-  <p id="pairing-code" role="status"></p>
+  <p id="pairing-code" class="pairing-code" role="status"></p>
+  <p class="note">詳細步驟見 <a href="{% url 'home' %}#provide">服務說明的提供設備流程</a>。</p>
 </section>
 
 <section>
   <h2>設備狀態</h2>
+  <p class="note">自己的設備可直接開關分享;其他單位的設備僅顯示狀態。</p>
   <div id="node-list"></div>
 </section>
 {% endblock %}

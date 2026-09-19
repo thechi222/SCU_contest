@@ -3,26 +3,77 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{% endblock %} | PowerShare</title>
+  <title>{% block title %}{% endblock %}｜PowerShare 校園算力共享平台</title>
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
-<body>
+<body data-page="{{ page }}">
+  <a class="skip-link" href="#main">跳到主要內容</a>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="org">東吳大學</span>
+      <span class="unit">巨量資料管理學院(單位名稱待確認)</span>
+      <span class="topbar-spacer"></span>
+      <a href="{% url 'home' %}#rules">使用規範</a>
+      <a href="{% url 'login' %}">登入</a>
+    </div>
+  </div>
+
   <header class="site-header">
-    <a class="brand" href="{% url 'index' %}">PowerShare</a>
-    {% block nav %}
-    <nav class="site-nav">
-      <a href="{% url 'index' %}">工作台</a>
-      <a href="{% url 'nodes' %}">我的設備</a>
-      <a href="{% url 'assistant' %}">AI 助理</a>
-      <a href="{% url 'display' %}">大螢幕</a>
-    </nav>
-    <div id="current-user"></div>
-    {% endblock %}
+    <div class="header-inner">
+      <a class="brand" href="{% url 'home' %}">
+        <span class="brand-mark" aria-hidden="true">PS</span>
+        <span class="brand-text">
+          <strong>PowerShare</strong>
+          <small>校園 GPU 算力共享平台</small>
+        </span>
+      </a>
+
+      <nav class="site-nav" aria-label="主要導覽">
+        <a href="{% url 'home' %}"{% if page == 'home' %} class="current" aria-current="page"{% endif %}>服務說明</a>
+        <a href="{% url 'workbench' %}"{% if page == 'workbench' %} class="current" aria-current="page"{% endif %}>工作台</a>
+        <a href="{% url 'nodes' %}"{% if page == 'nodes' %} class="current" aria-current="page"{% endif %}>我的設備</a>
+        <a href="{% url 'assistant' %}"{% if page == 'assistant' %} class="current" aria-current="page"{% endif %}>AI 助理</a>
+        <a href="{% url 'display' %}"{% if page == 'display' %} class="current" aria-current="page"{% endif %}>即時看板</a>
+      </nav>
+
+      <div id="current-user" class="current-user"></div>
+    </div>
   </header>
 
-  <main class="container">
+  {% block breadcrumb %}
+  <nav class="breadcrumb" aria-label="麵包屑">
+    <div class="breadcrumb-inner">
+      <a href="{% url 'home' %}">首頁</a>
+      <span aria-hidden="true">/</span>
+      <span>{% block breadcrumb_current %}{% endblock %}</span>
+    </div>
+  </nav>
+  {% endblock %}
+
+  <main id="main" class="container">
     {% block content %}{% endblock %}
   </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div>
+        <p class="footer-title">PowerShare 校園 GPU 算力共享平台</p>
+        <p>本平台僅供校內教學、學術與研究用途,不得作為營利性商業使用。</p>
+        <p>使用前請詳閱 <a href="{% url 'home' %}#rules">使用規範</a>。</p>
+      </div>
+      <div>
+        <p class="footer-title">聯絡方式</p>
+        <p>承辦單位:待確認</p>
+        <p>服務信箱:待確認</p>
+        <p>問題回報:請附上工作編號與發生時間</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>東吳大學 學生專題作品</span>
+      <span>本頁的單位名稱與聯絡資訊尚未確認,正式上線前須更新</span>
+    </div>
+  </footer>
 
   {% block auth_script %}
   <script type="module" src="{% static 'js/auth.js' %}"></script>

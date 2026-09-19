@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}工作台{% endblock %}
+{% block breadcrumb_current %}工作台{% endblock %}
+
+{% block content %}
+<h1>工作台</h1>
+
+<section class="card">
+  <h2>送出工作</h2>
+  <form id="submit-form" class="form-grid">
+    <label>任務類型
+      <select name="kind" required>
+        <option value="asr">語音轉逐字稿與字幕</option>
+        <option value="upscale">圖片 2 倍放大</option>
+      </select>
+    </label>
+    <label>批次名稱 <input type="text" name="name" placeholder="例如:資料庫課堂錄音" required></label>
+    <label>檔案 <input type="file" name="files" multiple required></label>
+    <button type="submit">送出</button>
+  </form>
+  <p id="submit-limits" class="note"></p>
+  <p id="submit-error" class="error" role="alert"></p>
+</section>
+
+<section>
+  <h2>我的工作</h2>
+  <div id="job-list"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/workbench.js' %}"></script>
+{% endblock %}

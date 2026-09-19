@@ -1,12 +1,20 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}大螢幕{% endblock %}
+{% block title %}即時看板{% endblock %}
+{% block breadcrumb_current %}即時看板{% endblock %}
 
 {% block content %}
+<h1>即時看板</h1>
+<p class="note">每 2 秒更新一次。適合於展示或機房螢幕全螢幕顯示。</p>
+
 <section>
-  <h1>即時狀態</h1>
+  <h2>設備</h2>
   <div id="display-nodes"></div>
+</section>
+
+<section>
+  <h2>佇列</h2>
   <div id="display-queue"></div>
 </section>
 {% endblock %}

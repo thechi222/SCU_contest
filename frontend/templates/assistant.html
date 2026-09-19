@@ -2,12 +2,15 @@
 {% load static %}
 
 {% block title %}AI 助理{% endblock %}
+{% block breadcrumb_current %}AI 助理{% endblock %}
 
 {% block content %}
-<section>
-  <h1>AI 助理</h1>
-  <div id="chat-log"></div>
-  <form id="chat-form">
+<h1>AI 助理</h1>
+<p class="note">以自然語言說明需求,助理會判斷任務類型並協助送出工作,或說明目前的佇列狀況。</p>
+
+<section class="card">
+  <div id="chat-log" class="chat-log"></div>
+  <form id="chat-form" class="form-inline">
     <input type="text" name="message" placeholder="例如:把這幾個錄音轉成逐字稿" required>
     <button type="submit">送出</button>
   </form>

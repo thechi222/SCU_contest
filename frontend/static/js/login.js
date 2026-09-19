@@ -12,7 +12,7 @@ form.addEventListener("submit", async (event) => {
       method: "POST",
       body: { email: data.get("email"), password: data.get("password") },
     });
-    window.location.assign("/");
+    window.location.assign("/workbench/");
   } catch (err) {
     error.textContent = err instanceof ApiError ? err.message : "登入失敗,請稍後再試";
   }

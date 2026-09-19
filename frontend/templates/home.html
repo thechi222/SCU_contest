@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}服務說明{% endblock %}
+{% block breadcrumb_current %}服務說明{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <div>
+    <h1>把課餘閒置的校內 GPU,變成大家可以用的算力</h1>
+    <p class="lead">
+      PowerShare 讓校內單位把自己的 GPU 電腦掛上平台,並可隨時收回;
+      需要運算的師生上傳檔案後,由目前閒置的設備接手處理,完成後取回成果。
+    </p>
+    <div class="hero-actions">
+      <a class="button" href="{% url 'workbench' %}">登入並送出工作</a>
+      <a class="button button-secondary" href="#provide">我要提供設備</a>
+    </div>
+  </div>
+  <dl class="hero-facts">
+    <div><dt>服務對象</dt><dd>本校教職員與在學學生</dd></div>
+    <div><dt>費用</dt><dd>校內使用不收費</dd></div>
+    <div><dt>設備來源</dt><dd>校內單位自願提供,可隨時收回</dd></div>
+  </dl>
+</div>
+
+<div class="with-side-nav">
+  <nav class="side-nav" aria-label="頁面目錄">
+    <p class="side-nav-title">本頁內容</p>
+    <a href="#services">提供的運算服務</a>
+    <a href="#limits">資源與使用限制</a>
+    <a href="#apply">申請與使用流程</a>
+    <a href="#provide">提供設備流程</a>
+    <a href="#rules">使用規範</a>
+    <a href="#faq">常見問題</a>
+  </nav>
+
+  <div class="side-nav-content">
+    <section id="services">
+      <h2>提供的運算服務</h2>
+      <p>目前提供兩種固定任務。使用者不需自行安裝環境,也不能指定執行的指令或模型,以降低設備提供者的風險。</p>
+      <table>
+        <caption>任務類型與輸出</caption>
+        <thead>
+          <tr><th scope="col">任務</th><th scope="col">輸入</th><th scope="col">輸出</th><th scope="col">使用的模型</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>語音轉逐字稿</td>
+            <td>音訊檔(例如課堂錄音、訪談錄音)</td>
+            <td>逐字稿 <code>transcript.txt</code>、字幕 <code>subtitles.srt</code></td>
+            <td>faster-whisper(whisper-small)</td>
+          </tr>
+          <tr>
+            <td>圖片 2 倍放大</td>
+            <td>圖片檔</td>
+            <td>放大後圖片 <code>upscaled.png</code></td>
+            <td>Real-ESRGAN x2</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note">
+        逐字稿保留模型輸出的用字,中文可能出現簡體字,尚未整合字形轉換,建議自行校對後再使用。
+        模型與授權來源見 repo 內的 <code>THIRD_PARTY.md</code>。
+      </p>
+    </section>
+
+    <section id="limits">
+      <h2>資源與使用限制</h2>
+      <p>平台上的設備由校內單位自願提供,型號與數量會隨提供情況變動。登入後可於「即時看板」查看目前可用的設備與規格。</p>
+      <table>
+        <caption>使用限制</caption>
+        <tbody>
+          <tr><th scope="row">單一檔案大小</th><td>50 MB 以內</td></tr>
+          <tr><th scope="row">每批檔案數</th><td>20 個以內,整批合計 150 MB 以內</td></tr>
+          <tr><th scope="row">圖片尺寸</th><td>放大任務的原圖不超過 2048 × 2048</td></tr>
+          <tr><th scope="row">同時執行</th><td>每個帳號預設同時 2 件工作</td></tr>
+          <tr><th scope="row">每日額度</th><td>每個帳號預設每日 100 個檔案</td></tr>
+          <tr><th scope="row">執行方式</th><td>每件工作獨占一張 GPU,不跨機合併顯示記憶體</td></tr>
+        </tbody>
+      </table>
+      <p class="note">同時執行與每日額度可由管理者依實際設備數量調整。</p>
+    </section>
+
+    <section id="apply">
+      <h2>申請與使用流程</h2>
+      <ol class="steps">
+        <li>
+          <h3>申請帳號</h3>
+          <p>本平台不開放自行註冊,帳號由承辦單位建立後提供。申請方式與表單待確認。</p>
+        </li>
+        <li>
+          <h3>登入並修改密碼</h3>
+          <p>首次登入請立即更換初始密碼。</p>
+        </li>
+        <li>
+          <h3>上傳檔案</h3>
+          <p>於「工作台」選擇任務類型、為這批檔案命名並上傳。每個檔案都是一件獨立的工作。</p>
+        </li>
+        <li>
+          <h3>等待派工</h3>
+          <p>平台會把工作派給目前閒置且通過自我測試的設備。若設備中途被收回,檔案會自動重新排隊。</p>
+        </li>
+        <li>
+          <h3>取回成果</h3>
+          <p>完成後可單獨下載成果,或將整批打包成 ZIP 下載。成果只有本人看得到。</p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="provide">
+      <h2>提供設備流程</h2>
+      <p>任何校內單位或個人都可以把自己的 GPU 電腦加入平台,並保有完全的控制權。</p>
+      <ol class="steps">
+        <li>
+          <h3>環境準備</h3>
+          <p>機台需具備 NVIDIA GPU、驅動程式與 Docker。執行 <code>agent prepare</code> 下載模型、建立容器並實跑一次 CUDA 自我測試,只有通過的任務類型會登錄。</p>
+        </li>
+        <li>
+          <h3>取得配對碼</h3>
+          <p>登入後於「我的設備」取得一次性配對碼(10 分鐘有效),在機台執行 <code>agent pair</code> 完成登錄。</p>
+        </li>
+        <li>
+          <h3>開始與停止分享</h3>
+          <p>在網站上開啟分享,或在機台本機執行 <code>agent stop</code>。兩者都會立即停止目前的容器,未完成的檔案由其他設備接手。</p>
+        </li>
+      </ol>
+      <p class="note">
+        工作容器沒有網路、根檔案系統唯讀,並限制 CPU、記憶體與行程數,只掛載該次工作的輸入、輸出與固定模型目錄。
+        設備不需要對外開放任何連接埠。
+      </p>
+    </section>
+
+    <section id="rules">
+      <h2>使用規範</h2>
+      <ul class="rules">
+        <li>本服務僅供校內教學、學術與研究用途,不得從事營利性商業用途。</li>
+        <li>使用者應遵守資通安全相關法規與智慧財產權規定,不得上傳來源不明或未取得授權的素材。</li>
+        <li>上傳內容如涉及個人資料或他人隱私(例如訪談錄音),應先取得當事人同意,並自行負責去識別化。</li>
+        <li>平台管理者可查看全平台的工作紀錄以維運服務;設備提供者亦可能接觸自己設備處理中的檔案,請勿上傳高度機密資料。</li>
+        <li>不得以任何方式規避使用額度、干擾派工,或影響其他使用者與設備提供者的正常使用。</li>
+        <li>檔案保存期限與清除方式待確認,請自行保留原始檔案備份。</li>
+        <li>違反上述規範者,管理者得停用帳號並依校內相關規定處理。</li>
+      </ul>
+      <p class="note">本頁規範為平台團隊草擬,正式上線前須經權責單位核定。</p>
+    </section>
+
+    <section id="faq">
+      <h2>常見問題</h2>
+      <dl class="faq">
+        <dt>我的檔案會被別人看到嗎?</dt>
+        <dd>其他使用者看不到。但處理該檔案的設備提供者,以及平台管理者,技術上可以接觸到,請依上述規範使用。</dd>
+
+        <dt>設備提供者中途要用電腦怎麼辦?</dt>
+        <dd>隨時可以關閉分享或在本機停止,執行中的容器會立即停止,未完成的檔案自動回到佇列由其他設備接手,不需要等工作結束。</dd>
+
+        <dt>工作失敗了會怎樣?</dt>
+        <dd>系統會自動重試,含第一次最多三次。仍然失敗時會標示原因,可在工作台手動重送。</dd>
+
+        <dt>可以自己安裝套件或跑自己的程式嗎?</dt>
+        <dd>目前不行。平台只提供上述兩種固定任務,這是為了讓提供設備的單位能放心分享。</dd>
+
+        <dt>要收費嗎?</dt>
+        <dd>校內使用不收費。電費與設備折舊由提供設備的單位自行吸收。</dd>
+      </dl>
+    </section>
+  </div>
+</div>
+{% endblock %}
