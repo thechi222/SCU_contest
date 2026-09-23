@@ -11,17 +11,24 @@
   <h2>送出工作</h2>
   <form id="submit-form" class="form-grid">
     <label>任務類型
-      <select name="kind" required>
-        <option value="asr">語音轉逐字稿與字幕</option>
-        <option value="upscale">圖片 2 倍放大</option>
-      </select>
+      <select name="kind" id="kind-select" required></select>
     </label>
     <label>批次名稱 <input type="text" name="name" placeholder="例如:資料庫課堂錄音" required></label>
     <label>檔案 <input type="file" name="files" multiple required></label>
     <button type="submit">送出</button>
   </form>
+  <p id="kind-note" class="note"></p>
   <p id="submit-limits" class="note"></p>
   <p id="submit-error" class="error" role="alert"></p>
+</section>
+
+<section class="card card-muted">
+  <h2>其他使用方式</h2>
+  <p>
+    需要自己寫程式、調參數或跑實驗,而不是上述固定任務時,可改用
+    <a href="{% url 'rentals' %}">自由租借 GPU</a>:在限定時間內進入容器自行操作。
+    想先看看目前有哪些設備閒置,可查看 <a href="{% url 'dashboard' %}">閒置算力儀表板</a>。
+  </p>
 </section>
 
 <section>

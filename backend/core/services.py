@@ -8,7 +8,7 @@ from django.db.models import Count, Max, Q
 from django.utils import timezone
 
 from core.exceptions import ApiError
-from core.models import Attempt, Event, Job, Node
+from core.models import Attempt, Event, Job, Node, Rental
 
 
 def record(kind: str, message: str, *, user=None, node=None, job=None) -> None:
@@ -62,6 +62,8 @@ def claim_job(node: Node) -> Attempt | None:
         return None
     if Attempt.objects.filter(node=node, ended_at__isnull=True).exists():
         return None
+    if Rental.objects.filter(node=node, status__in=Rental.ON_NODE).exists():
+        return None   # 互動式租借期間整台設備由租借者使用(§4.10)
 
     kinds = [kind for kind in node.capabilities if node.capabilities[kind].get("cuda_verified")]
     if not kinds:

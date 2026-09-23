@@ -50,6 +50,7 @@ class Node(models.Model):
     telemetry = models.JSONField(default=dict)      # 最近一次心跳的 GPU 監控數值
     sharing = models.BooleanField(default=False)        # 平台端開關,由機主於網站切換
     local_enabled = models.BooleanField(default=False)  # 機台端開關,由 Agent 的 ENABLED 檔回報
+    allow_rental = models.BooleanField(default=False)   # 機主另行同意才接受互動式租借
     revoked = models.BooleanField(default=False)        # 撤銷後 token 失效
     schedule_start = models.CharField(max_length=5, null=True, blank=True)   # "HH:MM",空值代表不限時段
     schedule_end = models.CharField(max_length=5, null=True, blank=True)
@@ -145,6 +146,109 @@ class Artifact(models.Model):
     file = models.FileField(upload_to=artifact_path, max_length=255)
     media_type = models.CharField(max_length=100)
     size = models.PositiveBigIntegerField()
+
+
+class Rental(models.Model):
+    """互動式租借:使用者在限定時間內取得一個固定映像的 GPU 容器,自行操作。
+
+    與 Job 共用同一批節點,但一台節點同時只會有一件工作或一段租借(見 §4.5)。
+    """
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "排隊中"
+        STARTING = "starting", "啟動中"
+        ACTIVE = "active", "使用中"
+        ENDING = "ending", "結束中"
+        ENDED = "ended", "已結束"
+        EXPIRED = "expired", "已到期"
+        FAILED = "failed", "啟動失敗"
+        CANCELLED = "cancelled", "已取消"
+
+    OPEN = ("queued", "starting", "active", "ending")   # 仍佔用佇列或節點
+    ON_NODE = ("starting", "active", "ending")          # 已指派節點
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="rentals")
+    node = models.ForeignKey(Node, on_delete=models.PROTECT, null=True, blank=True, related_name="rentals")
+    workspace = models.CharField(max_length=20)         # WORKSPACES 的鍵
+    image = models.CharField(max_length=120)            # 申請時固定的映像版本
+    minutes = models.PositiveSmallIntegerField()        # 申請時數(分鐘)
+    purpose = models.CharField(max_length=200, blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED)
+    connect_url = models.CharField(max_length=300, blank=True)   # Agent 回報的連線位址
+    connect_token = models.CharField(max_length=120, blank=True)  # 只給租借者,結束時清除
+    connection = models.JSONField(default=dict)         # 通道型態與其他連線資訊
+    lease_until = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    end_reason = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["node"],
+                condition=models.Q(status__in=["starting", "active", "ending"]),
+                name="one_open_rental_per_node",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["status", "created_at"]),
+            models.Index(fields=["user", "-created_at"]),
+        ]
+
+
+class UsageSample(models.Model):
+    """節點狀態取樣。心跳時每 settings.USAGE_SAMPLE_SECONDS 最多寫入一筆,供儀表板繪圖與匯出。"""
+
+    class State(models.TextChoices):
+        BUSY = "busy", "執行工作"
+        RENTED = "rented", "租借中"
+        IDLE = "idle", "閒置可用"
+        PAUSED = "paused", "未開放"
+        OFFLINE = "offline", "離線"
+
+    id = models.BigAutoField(primary_key=True)
+    node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="usage_samples")
+    captured_at = models.DateTimeField()
+    state = models.CharField(max_length=10, choices=State.choices)
+    gpu_utilization = models.FloatField(null=True, blank=True)        # 0–100
+    memory_used_mb = models.PositiveIntegerField(null=True, blank=True)
+    temperature_c = models.FloatField(null=True, blank=True)
+    power_w = models.FloatField(null=True, blank=True)
+    interval_seconds = models.FloatField(default=0)   # 距離上一筆取樣的秒數
+    busy_seconds = models.FloatField(default=0)       # 區間內視為有工作的秒數
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["node", "-captured_at"]),
+            models.Index(fields=["-captured_at"]),
+        ]
+
+
+class NodeDailyUsage(models.Model):
+    """每日用量彙整。取樣資料會定期清除,長期統計以本表保存。"""
+
+    id = models.BigAutoField(primary_key=True)
+    node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="daily_usage")
+    day = models.DateField()
+    busy_seconds = models.FloatField(default=0)
+    rented_seconds = models.FloatField(default=0)
+    idle_seconds = models.FloatField(default=0)
+    offline_seconds = models.FloatField(default=0)
+    gpu_seconds = models.FloatField(default=0)        # worker 回報的實際 GPU 執行秒數
+    jobs_completed = models.PositiveIntegerField(default=0)
+    samples = models.PositiveIntegerField(default=0)
+    avg_utilization = models.FloatField(null=True, blank=True)
+    peak_utilization = models.FloatField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["node", "day"], name="one_usage_row_per_node_day"),
+        ]
+        indexes = [models.Index(fields=["-day"])]
 
 
 class Event(models.Model):

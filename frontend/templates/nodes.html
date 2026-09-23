@@ -20,8 +20,20 @@
 
 <section>
   <h2>設備狀態</h2>
-  <p class="note">自己的設備可直接開關分享;其他單位的設備僅顯示狀態。</p>
+  <p class="note">
+    自己的設備可直接開關分享;其他單位的設備僅顯示狀態。
+    「接受租借」另行開啟後,該設備才會收到互動式租借(使用者自行進入容器操作),
+    風險說明見 <a href="{% url 'rentals' %}#rules">租借規範</a>。
+  </p>
   <div id="node-list"></div>
+</section>
+
+<section class="card card-muted">
+  <h2>用量紀錄</h2>
+  <p>
+    設備的使用狀態每分鐘留存一筆,並彙整為每日用量,可於
+    <a href="{% url 'dashboard' %}">閒置算力儀表板</a> 查看或匯出 CSV。
+  </p>
 </section>
 {% endblock %}
 

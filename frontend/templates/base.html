@@ -32,6 +32,8 @@
       <nav class="site-nav" aria-label="主要導覽">
         <a href="{% url 'home' %}"{% if page == 'home' %} class="current" aria-current="page"{% endif %}>服務說明</a>
         <a href="{% url 'workbench' %}"{% if page == 'workbench' %} class="current" aria-current="page"{% endif %}>工作台</a>
+        <a href="{% url 'rentals' %}"{% if page == 'rentals' %} class="current" aria-current="page"{% endif %}>自由租借</a>
+        <a href="{% url 'dashboard' %}"{% if page == 'dashboard' %} class="current" aria-current="page"{% endif %}>算力儀表板</a>
         <a href="{% url 'nodes' %}"{% if page == 'nodes' %} class="current" aria-current="page"{% endif %}>我的設備</a>
         <a href="{% url 'assistant' %}"{% if page == 'assistant' %} class="current" aria-current="page"{% endif %}>AI 助理</a>
         <a href="{% url 'display' %}"{% if page == 'display' %} class="current" aria-current="page"{% endif %}>即時看板</a>

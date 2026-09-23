@@ -7,15 +7,17 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core import services
+from core import rentals as rental_service
+from core import services, usage
 from core.authentication import NodeTokenAuthentication, hash_token, new_token
 from core.exceptions import ApiError
 from core.models import Artifact, Attempt, Node, PairingCode
 from core.permissions import IsNode
-from core.profiles import ARTIFACT_NAMES
+from core.profiles import ARTIFACT_NAMES, WORKSPACES
 from core.serializers import (
     AssignmentSerializer, AttemptFailSerializer, HeartbeatResponseSerializer,
-    HeartbeatSerializer, PairSerializer,
+    HeartbeatSerializer, PairSerializer, RentalAssignmentSerializer,
+    RentalEndedSerializer, RentalReadySerializer,
 )
 
 
@@ -56,7 +58,11 @@ class PairView(APIView):
 
 
 class HeartbeatView(AgentAPIView):
-    """每 5 秒一次:更新節點狀態並續約。stop 為 true 時 Agent 立即停止容器。"""
+    """每 5 秒一次:更新節點狀態並續約。stop 為 true 時 Agent 立即停止容器。
+
+    Agent 帶 `attempt_id` 代表正在執行工作,帶 `rental_id` 代表正在提供互動式租借;
+    `stop` 針對本次回報的那一項。同時也依取樣間隔留存一筆用量紀錄(§4.9)。
+    """
 
     def post(self, request):
         data = HeartbeatSerializer(data=request.data)
@@ -78,6 +84,14 @@ class HeartbeatView(AgentAPIView):
             stop = not services.renew_lease(
                 node, payload["attempt_id"], payload.get("stage"), payload.get("progress"),
             )
+        elif payload.get("rental_id"):
+            stop = not rental_service.renew_lease(node, payload["rental_id"])
+
+        usage.record_sample(
+            node,
+            has_attempt=bool(payload.get("attempt_id")) and not stop,
+            has_rental=bool(payload.get("rental_id")) and not stop,
+        )
         body = {
             "stop": stop,
             "lease_seconds": settings.LEASE_SECONDS,
@@ -157,4 +171,49 @@ class AttemptFailView(AgentAPIView):
         data = AttemptFailSerializer(data=request.data)
         data.is_valid(raise_exception=True)
         services.fail_attempt(request.auth, attempt_id, data.validated_data["reason"])
+        return Response({"status": "ok"})
+
+
+class RentalClaimView(AgentAPIView):
+    """領取一段互動式租借;沒有合適的申請時 rental 為 null。"""
+
+    def post(self, request):
+        rental = rental_service.claim_rental(request.auth)
+        if rental is None:
+            return Response({"rental": None})
+
+        profile = WORKSPACES.get(rental.workspace, {})
+        assignment = {
+            "rental_id": rental.id,
+            "workspace": rental.workspace,
+            "image": rental.image,
+            "entry": profile.get("entry", "shell"),
+            "minutes": rental.minutes,
+            "lease_seconds": settings.LEASE_SECONDS,
+        }
+        return Response({"rental": RentalAssignmentSerializer(assignment).data})
+
+
+class RentalReadyView(AgentAPIView):
+    """容器啟動且連線通道備妥後回報。租借時數自平台收到本次回報起算。"""
+
+    def post(self, request, rental_id):
+        data = RentalReadySerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        rental = rental_service.mark_ready(
+            request.auth, rental_id,
+            data.validated_data["connect_url"],
+            data.validated_data.get("connect_token", ""),
+            data.validated_data.get("connection", {}),
+        )
+        return Response({"status": "ok", "expires_at": rental.expires_at})
+
+
+class RentalEndedView(AgentAPIView):
+    """容器已停止。啟動階段失敗回報為 failed,其餘視為正常結束。"""
+
+    def post(self, request, rental_id):
+        data = RentalEndedSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        rental_service.agent_ended(request.auth, rental_id, data.validated_data.get("reason", ""))
         return Response({"status": "ok"})

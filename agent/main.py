@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 import httpx
 from .hardware import gpu,telemetry,docker
+from .profiles import AVAILABLE_KINDS
 from .prepare import prepare,verify_profiles
 from .runtime import Runner,Cancelled,cleanup_owned
 
@@ -136,7 +137,7 @@ def main():
     parser.add_argument('--dir',type=Path,default=Path('.agent'))
     sub=parser.add_subparsers(dest='command',required=True)
     doctor=sub.add_parser('doctor');doctor.add_argument('--gpu',type=int,default=0)
-    prep=sub.add_parser('prepare');prep.add_argument('--gpu',type=int,default=0);prep.add_argument('--kind',choices=['asr','upscale','all'],default='all');prep.add_argument('--skip-build',action='store_true')
+    prep=sub.add_parser('prepare');prep.add_argument('--gpu',type=int,default=0);prep.add_argument('--kind',choices=AVAILABLE_KINDS+['all'],default='all');prep.add_argument('--skip-build',action='store_true')
     pair=sub.add_parser('pair');pair.add_argument('--server',required=True);pair.add_argument('--ca');pair.add_argument('--name',required=True);pair.add_argument('--gpu',type=int,default=0)
     for command in ('run','enable','stop','status'):sub.add_parser(command)
     args=parser.parse_args();directory=args.dir.resolve();directory.mkdir(parents=True,exist_ok=True)
@@ -145,7 +146,7 @@ def main():
     config_file=directory/'config.json'
     if args.command=='doctor':
         print(json.dumps({'hardware':gpu(args.gpu),'telemetry':telemetry(args.gpu),'docker':docker(['info','--format','{{.ServerVersion}}']).stdout.strip()},ensure_ascii=False,indent=2));return
-    if args.command=='prepare':prepare(directory,args.gpu,['asr','upscale'] if args.kind=='all' else [args.kind],not args.skip_build);return
+    if args.command=='prepare':prepare(directory,args.gpu,list(AVAILABLE_KINDS) if args.kind=='all' else [args.kind],not args.skip_build);return
     if args.command=='enable':(directory/'ENABLED').touch();print('本機已允許接單；仍需在平台開啟分享。');return
     if args.command=='stop':
         (directory/'ENABLED').unlink(missing_ok=True)

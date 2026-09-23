@@ -1,10 +1,11 @@
 from django.urls import path
 
-from core.views import agent, ai, auth, batches, jobs, nodes, state
+from core.views import agent, ai, auth, batches, jobs, nodes, rentals, state, usage
 
 urlpatterns = [
     path("health", state.HealthView.as_view()),
     path("state", state.StateView.as_view()),
+    path("tasks", state.TaskCatalogView.as_view()),
     path("auth/login", auth.LoginView.as_view()),
     path("auth/logout", auth.LogoutView.as_view()),
     path("auth/me", auth.MeView.as_view()),
@@ -17,11 +18,19 @@ urlpatterns = [
     path("artifacts/<uuid:artifact_id>", jobs.ArtifactDownloadView.as_view()),
     path("pairing-codes", nodes.PairingCodeView.as_view()),
     path("nodes/<uuid:node_id>", nodes.NodeDetailView.as_view()),
+    path("usage/summary", usage.UsageSummaryView.as_view()),
+    path("usage/export", usage.UsageExportView.as_view()),
+    path("usage/nodes/<uuid:node_id>", usage.UsageNodeView.as_view()),
+    path("rentals", rentals.RentalListCreateView.as_view()),
+    path("rentals/<uuid:rental_id>/cancel", rentals.RentalCancelView.as_view()),
     path("agent/pair", agent.PairView.as_view()),
     path("agent/heartbeat", agent.HeartbeatView.as_view()),
     path("agent/claim", agent.ClaimView.as_view()),
     path("agent/attempts/<uuid:attempt_id>/input", agent.AttemptInputView.as_view()),
     path("agent/attempts/<uuid:attempt_id>/complete", agent.AttemptCompleteView.as_view()),
     path("agent/attempts/<uuid:attempt_id>/fail", agent.AttemptFailView.as_view()),
+    path("agent/rentals/claim", agent.RentalClaimView.as_view()),
+    path("agent/rentals/<uuid:rental_id>/ready", agent.RentalReadyView.as_view()),
+    path("agent/rentals/<uuid:rental_id>/ended", agent.RentalEndedView.as_view()),
     path("ai/assist", ai.AIAssistView.as_view()),
 ]

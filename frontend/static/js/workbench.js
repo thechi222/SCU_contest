@@ -1,6 +1,8 @@
 import { api, ApiError, element, pollState } from "./api.js";
 
 const form = document.getElementById("submit-form");
+const kindSelect = document.getElementById("kind-select");
+const kindNote = document.getElementById("kind-note");
 const limits = document.getElementById("submit-limits");
 const error = document.getElementById("submit-error");
 const list = document.getElementById("job-list");
@@ -9,6 +11,33 @@ const STATUS_TEXT = {
   queued: "排隊中", loading: "準備中", running: "執行中", retrying: "重新排隊",
   completed: "已完成", failed: "失敗", cancelled: "已取消",
 };
+
+let tasks = [];
+
+/** 任務類型由後端目錄決定(§4.1);規劃中的類型一併列出但不可選取。 */
+function fillKinds(catalog) {
+  if (tasks.length === catalog.length) return;
+  tasks = catalog;
+  kindSelect.replaceChildren(...catalog.map((task) => {
+    const option = element("option", null,
+                           task.status === "available" ? task.label : `${task.label}(準備中)`);
+    option.value = task.kind;
+    option.disabled = task.status !== "available";
+    return option;
+  }));
+  const first = catalog.find((task) => task.status === "available");
+  if (first) kindSelect.value = first.kind;
+  describeKind();
+}
+
+function describeKind() {
+  const task = tasks.find((item) => item.kind === kindSelect.value);
+  kindNote.textContent = task
+    ? `輸入:${task.inputs};成果:${task.artifacts.join("、")}。${task.note}`
+    : "";
+}
+
+kindSelect.addEventListener("change", describeKind);
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -55,6 +84,7 @@ function jobRow(job) {
 }
 
 function render(state) {
+  fillKinds(state.tasks);
   const megabytes = Math.round(state.limits.max_file_bytes / 1024 / 1024);
   limits.textContent =
     `每批最多 ${state.limits.max_batch_files} 個檔案,單檔 ${megabytes} MB;` +

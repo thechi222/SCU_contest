@@ -2,8 +2,11 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 
+from core import rentals as rental_service
 from core import services
-from core.models import Artifact, Attempt, Batch, Event, Job, Node, User
+from core.models import (
+    Artifact, Attempt, Batch, Event, Job, Node, NodeDailyUsage, Rental, UsageSample, User,
+)
 
 
 # 內建使用者表單綁定 auth.User,自訂使用者模型須另行指定
@@ -38,8 +41,10 @@ class PowerShareUserAdmin(UserAdmin):
 
 @admin.register(Node)
 class NodeAdmin(admin.ModelAdmin):
-    list_display = ("name", "owner", "gpu_name", "sharing", "local_enabled", "revoked", "last_seen")
-    list_filter = ("sharing", "revoked")
+    list_display = (
+        "name", "owner", "gpu_name", "sharing", "local_enabled", "allow_rental", "revoked", "last_seen",
+    )
+    list_filter = ("sharing", "allow_rental", "revoked")
     readonly_fields = ("token_hash", "capabilities", "environment", "telemetry", "last_seen")
     actions = ["revoke_nodes"]
 
@@ -82,6 +87,35 @@ class AttemptAdmin(admin.ModelAdmin):
 class EventAdmin(admin.ModelAdmin):
     list_display = ("created_at", "kind", "message", "user", "node", "job")
     list_filter = ("kind",)
+
+
+@admin.register(Rental)
+class RentalAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "workspace", "node", "status", "minutes", "created_at", "expires_at")
+    list_filter = ("status", "workspace")
+    readonly_fields = ("connect_url", "connect_token", "connection", "lease_until")
+    actions = ["end_rentals"]
+
+    @admin.action(description="結束租借(容器於下一次心跳停止)")
+    def end_rentals(self, request, queryset):
+        ended = 0
+        for rental in queryset.filter(status__in=Rental.OPEN):
+            rental_service.finish(rental, Rental.Status.ENDED, "管理者結束")
+            ended += 1
+        self.message_user(request, f"已結束 {ended} 段租借")
+
+
+@admin.register(NodeDailyUsage)
+class NodeDailyUsageAdmin(admin.ModelAdmin):
+    list_display = ("day", "node", "busy_seconds", "rented_seconds", "idle_seconds",
+                    "gpu_seconds", "jobs_completed", "avg_utilization")
+    list_filter = ("day", "node")
+
+
+@admin.register(UsageSample)
+class UsageSampleAdmin(admin.ModelAdmin):
+    list_display = ("captured_at", "node", "state", "gpu_utilization", "memory_used_mb", "busy_seconds")
+    list_filter = ("state", "node")
 
 
 admin.site.register(Batch)

@@ -9,7 +9,7 @@ import wave
 from pathlib import Path
 import httpx
 from PIL import Image, ImageDraw
-from .profiles import PROFILES
+from .profiles import AVAILABLE_KINDS, PROFILES
 from .hardware import gpu, telemetry, docker
 from .runtime import Runner
 
@@ -50,6 +50,9 @@ def prepare(directory,index,kinds,build=True):
     target=directory/'profiles.json'
     profiles=json.loads(target.read_text('utf-8')) if target.exists() else {}
     for kind in kinds:
+        if kind not in AVAILABLE_KINDS:
+            # 目錄中標為 planned 的任務尚無容器與權重來源(README §1.2)
+            raise RuntimeError(kind+' 的容器與模型尚未建置，無法準備')
         print('Preparing '+kind,flush=True)
         tag='campus-relay/'+kind+':v1'
         if build:

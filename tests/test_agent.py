@@ -5,7 +5,8 @@ import json
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from core.models import Artifact, Job, Node
+from core import rentals
+from core.models import Artifact, Job, Node, Rental, UsageSample
 from core.profiles import PROFILES
 
 pytestmark = pytest.mark.django_db
@@ -156,3 +157,49 @@ def test_revoked_node_loses_access(client, paired):
     response = client.post("/api/agent/claim", headers=bearer(paired))
 
     assert response.status_code == 403 and response.json()["code"] == "AUTHENTICATION_FAILED"
+
+
+def test_heartbeat_stores_a_usage_sample(client, paired):
+    body = {"local_enabled": True, "telemetry": {"gpu_utilization": 33, "memory_used_mb": 1024}}
+
+    client.post("/api/agent/heartbeat", body, content_type="application/json", headers=bearer(paired))
+
+    sample = UsageSample.objects.get()
+    assert (sample.gpu_utilization, sample.memory_used_mb) == (33.0, 1024)
+
+
+def test_agent_rental_channel_end_to_end(client, paired, user):
+    """租借的機台通道:領取 → 回報可連線 → 心跳續約 → 回報容器停止(§4.10)。"""
+    Node.objects.update(sharing=True, local_enabled=True, allow_rental=True)
+    rentals.request_rental(user, "pytorch", 30, "測試")
+
+    assignment = client.post("/api/agent/rentals/claim", headers=bearer(paired)).json()["rental"]
+    assert assignment["image"].startswith("powershare/workspace-pytorch")
+
+    ready = client.post(
+        f"/api/agent/rentals/{assignment['rental_id']}/ready",
+        {"connect_url": "https://tunnel.example/lab", "connect_token": "abc",
+         "connection": {"tunnel": "測試通道"}},
+        content_type="application/json", headers=bearer(paired),
+    )
+    assert ready.status_code == 200
+
+    beat = client.post(
+        "/api/agent/heartbeat", {"local_enabled": True, "rental_id": assignment["rental_id"]},
+        content_type="application/json", headers=bearer(paired),
+    ).json()
+    assert beat["stop"] is False
+
+    ended = client.post(
+        f"/api/agent/rentals/{assignment['rental_id']}/ended", {"reason": "使用者關閉"},
+        content_type="application/json", headers=bearer(paired),
+    )
+    assert ended.status_code == 200
+    assert Rental.objects.get().status == Rental.Status.ENDED
+
+
+def test_agent_claim_returns_null_when_node_does_not_accept_rentals(client, paired, user):
+    Node.objects.update(sharing=True, local_enabled=True, allow_rental=False)
+    rentals.request_rental(user, "pytorch", 30, "測試")
+
+    assert client.post("/api/agent/rentals/claim", headers=bearer(paired)).json()["rental"] is None

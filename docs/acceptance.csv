@@ -16,3 +16,10 @@ GPU 容器實跑（ASR / 放大）,agent prepare 後送出工作,待驗證,,需 
 成果品質評估,以真實素材人工檢視,待驗證,,demo-assets 為合成素材，不代表品質
 使用者測試,README §6.5,待驗證,,10/13–10/19 執行
 AI 助理,tests 待補,未實作,,backend/core/ai_assistant.py 為介面定義
+用量取樣與每日彙整,tests/test_usage.py,已驗證,pytest 通過,取樣以測試資料產生，未經長時間實機累積
+儀表板端點與 CSV 匯出,tests/test_usage.py::test_summary_endpoint_returns_totals_and_nodes,已驗證,pytest 通過,
+互動式租借狀態機（申請、派給設備、到期、收回）,tests/test_rentals.py,已驗證,pytest 通過,平台端；機台端未實作
+租借與固定任務互斥（同一設備不同時執行）,tests/test_rentals.py::test_rental_blocks_job_dispatch_on_that_node,已驗證,pytest 通過,
+租借的機台端容器與連線通道,agent 端實作,未實作,,通道方案待確認（docs/architecture.md）
+規劃中任務（render / animate / dataset / train）的容器,agent prepare,未實作,,目錄已定義，容器與模型待建置
+儀表板長時間實機資料,連續執行數小時後比對 aggregate_usage,待驗證,,需實機與 GPU

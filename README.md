@@ -21,8 +21,8 @@ PowerShare 讓機主把自己的 GPU 掛上平台、隨時可以收回,使用者
 |---|---|---|
 | **全員(必讀)** | §0 → §1 → §2 → §3 | §8 風險表 |
 | 後端 / API / AI 助理 | §4 全部 → §6.1 | §4 契約、§6.1 驗收表 |
-| 機台 Agent / 容器 | §2 → §4.5 → §4.6 → §6.2 | [架構](docs/architecture.md)、[部署](docs/deployment.md) |
-| 前端 / 儀表板 | §4.2 → §4.3 → §4.8 → §6.3 | §4.8 呼叫方式、§6.3 驗收表 |
+| 機台 Agent / 容器 | §2 → §4.5 → §4.6 → §4.10 → §6.2 | [架構](docs/architecture.md)、[部署](docs/deployment.md) |
+| 前端 / 儀表板 | §4.2 → §4.3 → §4.8 → §4.9 → §6.3 | §4.8 呼叫方式、§4.9 用量欄位、§6.3 驗收表 |
 | 測試 / 整合 / 部署 | §3 → §4 → §7 | §3.4 對外測試部署、[驗收表](docs/acceptance.csv) |
 | 使用者測試 | §1 → §3.3 → §6.5 | §6.5 驗收表、附錄 A |
 
@@ -67,17 +67,32 @@ PowerShare 讓機主把自己的 GPU 掛上平台、隨時可以收回,使用者
 
 校內閒置的 GPU 與需要運算的學生之間缺少媒合方式。PowerShare 以「任務」為單位共享算力:
 使用者上傳檔案,平台把每個檔案派給目前閒置且通過自我測試的 GPU,完成後取回成果。
+固定任務無法涵蓋的需求,另以「互動式租借」提供限時的容器操作環境(§4.10)。
 
 機主保有完全控制權:隨時可在網站關閉分享或在機台本機停止,正在執行的檔案自動回到佇列由其他設備接手。
 
-## 1.2 兩種任務
+平台同時記錄各機台的使用狀態與用量,於儀表板呈現目前閒置的算力並可匯出留存(§4.9)。
 
-| 任務類型 | 輸入 | 成果 | 模型 |
-|---|---|---|---|
-| `asr` | 音訊 | 逐字稿 `transcript.txt`、字幕 `subtitles.srt` | `whisper-small-v1` |
-| `upscale` | 圖片 | 2 倍放大 `upscaled.png` | `realesrgan-x2-v1` |
+## 1.2 任務目錄與兩種使用方式
 
-任務類型與模型版本固定於 `backend/core/profiles.py`,使用者不能指定命令、映像、模型或任意參數。
+**使用方式一:固定任務。** 使用者上傳檔案,平台派給閒置設備執行預先定義好的流程。
+任務類型、模型版本與成果檔名固定於 `backend/core/profiles.py`,使用者不能指定命令、映像、模型或任意參數。
+
+| 任務類型 | 輸入 | 成果 | 模型 / 工具 | 狀態 |
+|---|---|---|---|---|
+| `asr` | 音訊 | 逐字稿 `transcript.txt`、字幕 `subtitles.srt` | `whisper-small-v1` | 已開放 |
+| `upscale` | 圖片 | 2 倍放大 `upscaled.png` | `realesrgan-x2-v1` | 已開放 |
+| `render` | `.blend` 場景檔 | `render.png`、`render-log.txt` | `blender-4.2-cycles-v1` | 規劃中 |
+| `animate` | `.blend` 場景檔與影格範圍 | `frames.zip`、`preview.mp4` | `blender-4.2-frames-v1` | 規劃中 |
+| `dataset` | CSV / Parquet 資料集 | `dataset.parquet`、`summary.json` | `datatools-v1` | 規劃中 |
+| `train` | 資料集與 `train.yaml` | `model.safetensors`、`metrics.json` | `pytorch-2.4-train-v1` | 規劃中 |
+
+**狀態的意義**:`available`(已開放)代表 `workers/` 已有對應容器,使用者可送出;
+`planned`(規劃中)代表介面、成果檔名與資源需求已定義並公告於目錄,容器尚未建置,
+送出時由 `BatchCreateSerializer.validate_kind` 擋下。新增任務的步驟見 §6.2。
+
+**使用方式二:互動式租借。** 使用者申請一段時間,由開放租借的設備啟動固定映像的容器,
+自行進入操作,到期自動回收。與固定任務的差異見 §4.10。
 
 ## 1.3 運作方式
 
@@ -86,27 +101,36 @@ PowerShare 讓機主把自己的 GPU 掛上平台、隨時可以收回,使用者
 3. **平台派工** — 依公平順序把工作派給閒置設備,給 20 秒租約;Agent 每 5 秒續約。
 4. **機主隨時可收回** — 關閉分享或本機停止後,容器立即停止,未完成的檔案重新排隊。
 5. **取回成果** — 使用者下載單一成果或整批 ZIP;成果只有本人看得到。
+6. **另一條路徑:互動式租借** — 使用者申請時數,平台派給開放租借的設備啟動容器並轉交連線資訊,到期或機主收回時停止。
+7. **用量留存** — 每次心跳依取樣間隔留存一筆機台狀態,並彙整為每日用量,於儀表板呈現與匯出。
 
 ## 1.4 範圍界定
 
 **MVP 包含**
 
-* 兩種固定任務(語音轉逐字稿與字幕、圖片 2 倍放大)
+* 固定任務:語音轉逐字稿與字幕、圖片 2 倍放大(其餘任務類型先登記於目錄,見 §1.2)
 * 一次性配對碼登錄 GPU、機主開關與每日開放時段
 * 公平派工、租約、逾時重排與重試上限
 * 上傳限制、每人同時執行上限與每日額度
+* 閒置算力儀表板:機台狀態取樣、每日用量彙整與 CSV 匯出(§4.9)
+* 互動式租借:申請、排隊、時數控制與回收(§4.10,平台端)
 * AI 助理(以自然語言送出工作與說明佇列狀態)
 * 使用者測試所需的個人帳號批次建立
 
+**初步版本,尚未完成**
+
+* 規劃中任務(`render`、`animate`、`dataset`、`train`)的容器與模型固定作業
+* 互動式租借的機台端:容器啟動與對外連線通道的方式待確認(§4.10)
+* 租借容器的資料保存與清除機制
+
 **不包含**
 
-* 互動式租借整台機器(時段預約、遠端桌面或 code-server)
 * 校外人士使用、收費與額度交易
 * 跨機合併顯示記憶體、斷點續跑
-* 自行訓練模型
+* 使用者自行提供程式碼或映像給固定任務執行
 * 可信硬體認證(詳見 §5)
 
-> 上述不包含項目為刻意界定的範圍取捨,非技術限制。
+> 「不包含」為刻意界定的範圍取捨,非技術限制;「初步版本」為已定義介面但尚未完成的項目。
 
 * * *
 
@@ -127,13 +151,14 @@ flowchart LR
         ADMIN[管理後台<br/>Django Admin]
         DB[(資料庫<br/>SQLite / PostgreSQL)]
         FILES[(檔案儲存<br/>輸入與成果)]
-        SCHED[排程器<br/>租約逾時清理]
+        SCHED[排程器<br/>租約逾時清理、用量彙整]
         AI[AI 助理<br/>LLM API]
     end
 
     subgraph Machines["校內 GPU 機台"]
         A1[Agent<br/>psutil / pynvml]
         C1[固定任務容器<br/>無網路・唯讀・限額]
+        C2[租借容器<br/>限時・可互動]
         M1[GPU]
     end
 
@@ -145,9 +170,11 @@ flowchart LR
     ADMIN --> DB
     SCHED --> DB
     API <--> AI
-    A1 -->|心跳、領取任務、上傳成果<br/>outbound HTTPS| API
+    A1 -->|心跳、領取任務與租借、上傳成果<br/>outbound HTTPS| API
     A1 --> C1
+    A1 --> C2
     C1 --- M1
+    C2 --- M1
 ```
 
 ## 2.2 一次任務的資料流
@@ -168,6 +195,24 @@ Agent 下載輸入 → 啟動固定容器 → GPU 運算 → 上傳成果
 POST /api/agent/attempts/{id}/complete   ← 確認租約仍有效,否則拒絕
     ↓
 Job 完成,使用者下載成果;或因逾時、機主收回而重新排隊(最多三次)
+```
+
+互動式租借走同一條 Agent 通道,但改以 `rental_id` 續約:
+
+```
+使用者申請時數
+    ↓
+POST /api/rentals          ← 檢查同時只有一段租借、每日時數上限
+    ↓
+Rental (status=queued)
+    ↓
+開放租借的設備呼叫 POST /api/agent/rentals/claim  ← 該設備沒有進行中的工作才會派給它
+    ↓
+Agent 啟動容器並備妥連線通道 → POST /api/agent/rentals/{id}/ready(時數自此起算)
+    ↓
+使用者取得連線位址與權杖,自行操作;Agent 每 5 秒以 rental_id 續約
+    ↓
+時數到期、使用者結束或機主收回 → 容器停止 → POST /api/agent/rentals/{id}/ended
 ```
 
 ## 2.3 為什麼機台不需要開放連接埠
@@ -219,17 +264,19 @@ SCU_contest/
 │       ├── models.py             凍結契約 §4.1
 │       ├── serializers.py        凍結契約 §4.2
 │       ├── urls.py               凍結契約 §4.3
-│       ├── profiles.py           任務類型與模型版本 §4.1
+│       ├── profiles.py           任務目錄與租借環境 §4.1
 │       ├── services.py           派工協定 §4.5
-│       ├── scheduling.py         租約逾時清理
+│       ├── usage.py              用量取樣與彙整 §4.9
+│       ├── rentals.py            互動式租借流程 §4.10
+│       ├── scheduling.py         租約逾時清理、用量彙整
 │       ├── authentication.py     節點 token 驗證
 │       ├── exceptions.py         錯誤格式 §4.4
 │       ├── throttles.py          登入次數限制
-│       ├── views/                auth、state、batches、jobs、nodes、agent、ai
+│       ├── views/                auth、state、batches、jobs、nodes、usage、rentals、agent、ai
 │       ├── ai_assistant.py       AI 助理 §4.7
 │       ├── seed_data.py          示範帳號與展示素材對照 §4.6
 │       ├── admin.py              Django Admin 設定
-│       ├── management/commands/  seed、import_users、run_scheduler
+│       ├── management/commands/  seed、import_users、run_scheduler、aggregate_usage
 │       └── migrations/
 ├── agent/                        [Agent] 機台端程式(移植自 codex 分支)
 │   ├── main.py                   CLI:doctor / prepare / pair / run / enable / stop / status
@@ -244,8 +291,8 @@ SCU_contest/
 │   ├── upscale.Dockerfile
 │   └── models.json               模型版本與權重來源
 ├── frontend/                     [前端] 由 Django 直接提供
-│   ├── templates/                base、login、index、nodes、assistant、display
-│   └── static/                   css/style.css、js/(api、auth、login、workbench、nodes、display、assistant)
+│   ├── templates/                base、home、login、workbench、nodes、dashboard、rentals、assistant、display
+│   └── static/                   css/style.css、js/(api、auth、login、workbench、nodes、dashboard、rentals、display、assistant)
 ├── scripts/                      [測試/整合] benchmark、憑證與素材產生
 ├── demo-assets/                  展示素材(離線合成語音與團隊產生的校準圖片)
 ├── docs/                         架構、部署、驗收表、實測紀錄、展示腳本
@@ -254,14 +301,17 @@ SCU_contest/
 
 **頁面路由**
 
-| 路徑 | 內容 |
-|---|---|
-| `/login/` | 登入 |
-| `/` | 工作台:送出批次、查看與取消自己的工作、下載成果 |
-| `/nodes/` | 我的設備:取得配對碼、開關分享、查看平台設備狀態 |
-| `/assistant/` | AI 助理對話框 |
-| `/display/` | 大螢幕:設備即時狀態與佇列統計 |
-| `/admin/` | Django Admin |
+| 路徑 | 內容 | 是否需登入 |
+|---|---|---|
+| `/` | 服務說明:服務內容、任務目錄、限制、申請與提供設備流程、使用規範 | 公開 |
+| `/login/` | 登入 | 公開 |
+| `/workbench/` | 工作台:送出批次、查看與取消自己的工作、下載成果 | 需登入 |
+| `/rentals/` | 自由租借:申請時數、查看連線資訊與結束租借(§4.10) | 需登入 |
+| `/dashboard/` | 閒置算力儀表板:各機台狀態、使用率曲線、每日用量與 CSV 匯出(§4.9) | 需登入 |
+| `/nodes/` | 我的設備:取得配對碼、開關分享與租借、查看平台設備狀態 | 需登入 |
+| `/assistant/` | AI 助理對話框 | 需登入 |
+| `/display/` | 大螢幕:設備即時狀態與佇列統計 | 需登入 |
+| `/admin/` | Django Admin | 管理者 |
 
 ## 3.2 環境需求
 
@@ -288,8 +338,11 @@ python manage.py runserver
 ```
 
 ```bash
-# 排程器(另開終端機):清理逾期租約
+# 排程器(另開終端機):清理逾期租約與租借、每 5 分鐘彙整用量
 cd backend && python manage.py run_scheduler
+
+# 手動重算用量彙整(排程器未執行時使用)
+cd backend && python manage.py aggregate_usage --days 7 --prune
 
 # 測試(於 repo 根目錄)
 pip install -r tests/requirements.txt
@@ -333,17 +386,113 @@ python manage.py import_users accounts.csv --output ~/powershare-credentials.csv
 
 ```python
 # ---- backend/core/profiles.py ----
-"""任務類型與其固定的模型版本。Agent 的自我測試結果須與此一致。"""
+"""任務目錄與互動式租借的工作環境。Agent 的自我測試結果須與本檔一致。
 
-PROFILES = {
-    "asr": "whisper-small-v1",
-    "upscale": "realesrgan-x2-v1",
+`status` 欄位:
+  * `available` — 已有對應的 worker 容器,使用者可送出。
+  * `planned`   — 介面、成果檔名與資源需求已定義,worker 容器尚未完成,暫不開放送出。
+
+新增任務類型的步驟見 README §6.2:先在此登記,再補上 `workers/` 的容器與模型版本,
+最後把 `status` 改為 `available`。任務鍵長度不得超過 10 個字元(見 §4.1 `Job.kind`)。
+"""
+
+TASKS = {
+    "asr": {
+        "label": "語音轉逐字稿與字幕",
+        "profile": "whisper-small-v1",
+        "status": "available",
+        "inputs": "音訊檔(wav / mp3 / m4a)",
+        "artifacts": ["transcript.txt", "subtitles.srt"],
+        "min_vram_mb": 4096,
+        "note": "逐字稿保留模型輸出的用字,建議自行校對後再使用。",
+    },
+    "upscale": {
+        "label": "圖片 2 倍放大",
+        "profile": "realesrgan-x2-v1",
+        "status": "available",
+        "inputs": "圖片檔(png / jpg),原圖不超過 2048×2048",
+        "artifacts": ["upscaled.png"],
+        "min_vram_mb": 4096,
+        "note": "固定 2 倍放大,不提供其他倍率或臉部修復參數。",
+    },
+    "render": {
+        "label": "3D 靜態算圖",
+        "profile": "blender-4.2-cycles-v1",
+        "status": "planned",
+        "inputs": "Blender 場景檔(.blend,含已打包的貼圖)",
+        "artifacts": ["render.png", "render-log.txt"],
+        "min_vram_mb": 8192,
+        "note": "以固定的 Blender 版本與 Cycles GPU 算圖,輸出單張影像。",
+    },
+    "animate": {
+        "label": "動畫影格算圖",
+        "profile": "blender-4.2-frames-v1",
+        "status": "planned",
+        "inputs": "Blender 場景檔(.blend)與影格範圍設定",
+        "artifacts": ["frames.zip", "preview.mp4", "render-log.txt"],
+        "min_vram_mb": 8192,
+        "note": "逐格算圖後合成預覽影片;影格數上限由平台設定。",
+    },
+    "dataset": {
+        "label": "資料集批次處理",
+        "profile": "datatools-v1",
+        "status": "planned",
+        "inputs": "資料集壓縮檔(csv / parquet)",
+        "artifacts": ["dataset.parquet", "summary.json", "run-log.txt"],
+        "min_vram_mb": 4096,
+        "note": "以固定的清理、特徵與統計流程處理,不接受自訂程式碼。",
+    },
+    "train": {
+        "label": "機器學習訓練",
+        "profile": "pytorch-2.4-train-v1",
+        "status": "planned",
+        "inputs": "資料集與固定格式的設定檔(train.yaml)",
+        "artifacts": ["model.safetensors", "metrics.json", "train-log.txt"],
+        "min_vram_mb": 12288,
+        "note": "僅提供平台預先定義的模型骨架與可填寫的超參數欄位。",
+    },
 }
 
-ARTIFACT_NAMES = {
-    "asr": ["transcript.txt", "subtitles.srt"],
-    "upscale": ["upscaled.png"],
+PROFILES = {kind: task["profile"] for kind, task in TASKS.items()}
+ARTIFACT_NAMES = {kind: task["artifacts"] for kind, task in TASKS.items()}
+AVAILABLE_KINDS = [kind for kind, task in TASKS.items() if task["status"] == "available"]
+
+
+WORKSPACES = {
+    "pytorch": {
+        "label": "PyTorch 訓練環境",
+        "image": "powershare/workspace-pytorch:2.4-cu124",
+        "status": "planned",
+        "entry": "jupyter",
+        "min_vram_mb": 8192,
+        "note": "PyTorch 2.4、CUDA 12.4 與常用套件,以 JupyterLab 進入。",
+    },
+    "datasci": {
+        "label": "資料科學環境",
+        "image": "powershare/workspace-datasci:1.0",
+        "status": "planned",
+        "entry": "jupyter",
+        "min_vram_mb": 4096,
+        "note": "pandas、scikit-learn、RAPIDS,以 JupyterLab 進入。",
+    },
+    "blender": {
+        "label": "Blender 算圖環境",
+        "image": "powershare/workspace-blender:4.2",
+        "status": "planned",
+        "entry": "shell",
+        "min_vram_mb": 8192,
+        "note": "Blender 4.2 命令列環境,以終端機進入。",
+    },
 }
+
+
+def task_catalog() -> list[dict]:
+    """供 API 與前端顯示的任務目錄;規劃中的任務一併列出,由 status 標示能否送出。"""
+    return [{"kind": kind, **task} for kind, task in TASKS.items()]
+
+
+def workspace_catalog() -> list[dict]:
+    return [{"key": key, **workspace} for key, workspace in WORKSPACES.items()]
 ```
 
 ```python
@@ -400,6 +549,7 @@ class Node(models.Model):
     telemetry = models.JSONField(default=dict)      # 最近一次心跳的 GPU 監控數值
     sharing = models.BooleanField(default=False)        # 平台端開關,由機主於網站切換
     local_enabled = models.BooleanField(default=False)  # 機台端開關,由 Agent 的 ENABLED 檔回報
+    allow_rental = models.BooleanField(default=False)   # 機主另行同意才接受互動式租借
     revoked = models.BooleanField(default=False)        # 撤銷後 token 失效
     schedule_start = models.CharField(max_length=5, null=True, blank=True)   # "HH:MM",空值代表不限時段
     schedule_end = models.CharField(max_length=5, null=True, blank=True)
@@ -497,6 +647,109 @@ class Artifact(models.Model):
     size = models.PositiveBigIntegerField()
 
 
+class Rental(models.Model):
+    """互動式租借:使用者在限定時間內取得一個固定映像的 GPU 容器,自行操作。
+
+    與 Job 共用同一批節點,但一台節點同時只會有一件工作或一段租借(見 §4.5)。
+    """
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "排隊中"
+        STARTING = "starting", "啟動中"
+        ACTIVE = "active", "使用中"
+        ENDING = "ending", "結束中"
+        ENDED = "ended", "已結束"
+        EXPIRED = "expired", "已到期"
+        FAILED = "failed", "啟動失敗"
+        CANCELLED = "cancelled", "已取消"
+
+    OPEN = ("queued", "starting", "active", "ending")   # 仍佔用佇列或節點
+    ON_NODE = ("starting", "active", "ending")          # 已指派節點
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="rentals")
+    node = models.ForeignKey(Node, on_delete=models.PROTECT, null=True, blank=True, related_name="rentals")
+    workspace = models.CharField(max_length=20)         # WORKSPACES 的鍵
+    image = models.CharField(max_length=120)            # 申請時固定的映像版本
+    minutes = models.PositiveSmallIntegerField()        # 申請時數(分鐘)
+    purpose = models.CharField(max_length=200, blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED)
+    connect_url = models.CharField(max_length=300, blank=True)   # Agent 回報的連線位址
+    connect_token = models.CharField(max_length=120, blank=True)  # 只給租借者,結束時清除
+    connection = models.JSONField(default=dict)         # 通道型態與其他連線資訊
+    lease_until = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    end_reason = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["node"],
+                condition=models.Q(status__in=["starting", "active", "ending"]),
+                name="one_open_rental_per_node",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["status", "created_at"]),
+            models.Index(fields=["user", "-created_at"]),
+        ]
+
+
+class UsageSample(models.Model):
+    """節點狀態取樣。心跳時每 settings.USAGE_SAMPLE_SECONDS 最多寫入一筆,供儀表板繪圖與匯出。"""
+
+    class State(models.TextChoices):
+        BUSY = "busy", "執行工作"
+        RENTED = "rented", "租借中"
+        IDLE = "idle", "閒置可用"
+        PAUSED = "paused", "未開放"
+        OFFLINE = "offline", "離線"
+
+    id = models.BigAutoField(primary_key=True)
+    node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="usage_samples")
+    captured_at = models.DateTimeField()
+    state = models.CharField(max_length=10, choices=State.choices)
+    gpu_utilization = models.FloatField(null=True, blank=True)        # 0–100
+    memory_used_mb = models.PositiveIntegerField(null=True, blank=True)
+    temperature_c = models.FloatField(null=True, blank=True)
+    power_w = models.FloatField(null=True, blank=True)
+    interval_seconds = models.FloatField(default=0)   # 距離上一筆取樣的秒數
+    busy_seconds = models.FloatField(default=0)       # 區間內視為有工作的秒數
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["node", "-captured_at"]),
+            models.Index(fields=["-captured_at"]),
+        ]
+
+
+class NodeDailyUsage(models.Model):
+    """每日用量彙整。取樣資料會定期清除,長期統計以本表保存。"""
+
+    id = models.BigAutoField(primary_key=True)
+    node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="daily_usage")
+    day = models.DateField()
+    busy_seconds = models.FloatField(default=0)
+    rented_seconds = models.FloatField(default=0)
+    idle_seconds = models.FloatField(default=0)
+    offline_seconds = models.FloatField(default=0)
+    gpu_seconds = models.FloatField(default=0)        # worker 回報的實際 GPU 執行秒數
+    jobs_completed = models.PositiveIntegerField(default=0)
+    samples = models.PositiveIntegerField(default=0)
+    avg_utilization = models.FloatField(null=True, blank=True)
+    peak_utilization = models.FloatField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["node", "day"], name="one_usage_row_per_node_day"),
+        ]
+        indexes = [models.Index(fields=["-day"])]
+
+
 class Event(models.Model):
     """稽核紀錄。使用者只看得到與自己的工作或設備相關的事件。"""
 
@@ -523,9 +776,14 @@ class Event(models.Model):
 | Attempt | `outcome` = `succeeded` / `failed` / `expired` / `cancelled` | 成功 / 執行失敗 / 租約逾時 / 機主收回或使用者取消 |
 | Node | `sharing` | 機主於網站開啟分享 |
 | Node | `local_enabled` | 機台端 `agent enable`(心跳回報) |
+| Node | `allow_rental` | 機主另行同意接受互動式租借(§4.10) |
 | Node | `revoked` | 已撤銷,token 失效 |
+| Rental | `queued` → `starting` → `active` → `ending` → `ended` | 排隊 → 設備啟動容器 → 使用中 → 停止中 → 已結束 |
+| Rental | `expired` / `failed` / `cancelled` | 時數到期 / 啟動失敗或設備失聯 / 使用者取消 |
+| UsageSample | `state` = `busy` / `rented` / `idle` / `paused` / `offline` | 執行工作 / 租借中 / 閒置可用 / 未開放 / 離線 |
 
-節點要同時 `sharing`、`local_enabled`、未 `revoked` 且在開放時段內才會取得工作。
+節點要同時 `sharing`、`local_enabled`、未 `revoked` 且在開放時段內才會取得工作;
+要再加上 `allow_rental` 才會取得互動式租借。一台節點同時只會有一件工作或一段租借。
 
 ## 4.2 API 資料格式
 
@@ -548,10 +806,53 @@ class Event(models.Model):
                          "artifacts": [{"id": "…", "name": "transcript.txt",
                                         "media_type": "text/plain", "size": 2048}],
                          "created_at": "…", "completed_at": null}]}],
+  "rentals": [{"id": "…", "workspace": "pytorch", "workspace_label": "PyTorch 訓練環境",
+               "image": "powershare/workspace-pytorch:2.4-cu124", "minutes": 60, "purpose": "專題訓練",
+               "status": "active", "node_name": "實驗室 RTX 3090", "connect_url": "https://…",
+               "connect_token": "…", "connection": {}, "seconds_left": 2280.0,
+               "created_at": "…", "started_at": "…", "expires_at": "…", "ended_at": null,
+               "end_reason": ""}],
   "events": [{"id": 12, "kind": "dispatch", "message": "lecture.wav 派給 實驗室 RTX 3090",
               "created_at": "…"}],
+  "tasks": [{"kind": "asr", "label": "語音轉逐字稿與字幕", "profile": "whisper-small-v1",
+             "status": "available", "inputs": "音訊檔(wav / mp3 / m4a)",
+             "artifacts": ["transcript.txt", "subtitles.srt"], "min_vram_mb": 4096, "note": "…"}],
   "limits": {"kinds": ["asr", "upscale"], "max_file_bytes": 52428800, "max_batch_files": 20,
-             "max_batch_bytes": 157286400, "max_running": 2, "daily_limit": 100}
+             "max_batch_bytes": 157286400, "max_running": 2, "daily_limit": 100,
+             "rental_max_minutes": 120, "rental_daily_minutes": 240}
+}
+```
+
+```json
+// GET /api/usage/summary(儀表板,§4.9)
+{
+  "generated_at": "…+08:00",
+  "totals": {"nodes_total": 3, "nodes_online": 2, "nodes_idle": 1, "nodes_working": 1,
+             "idle_vram_mb": 24576, "online_vram_mb": 32768, "avg_utilization": 46.5,
+             "jobs_queued": 4, "jobs_running": 1, "rentals_open": 0},
+  "nodes": [{"id": "…", "name": "實驗室 RTX 3090", "owner_name": "王老師", "is_mine": false,
+             "gpu_name": "NVIDIA RTX 3090", "memory_mb": 24576, "kinds": ["asr", "upscale"],
+             "allow_rental": false, "state": "busy", "gpu_utilization": 93.0,
+             "memory_used_mb": 7014, "temperature_c": 68.0, "power_w": 210.0,
+             "last_seen": "…+08:00",
+             "today": {"busy_seconds": 5400.0, "rented_seconds": 0.0, "idle_seconds": 21600.0,
+                       "gpu_seconds": 4820.5, "jobs_completed": 37},
+             "series": [{"t": "…+08:00", "u": 93.0, "state": "busy"}]}],
+  "days": [{"day": "2026-09-23", "busy_seconds": 5400.0, "rented_seconds": 0.0,
+            "idle_seconds": 21600.0, "gpu_seconds": 4820.5, "jobs_completed": 37}],
+  "settings": {"sample_seconds": 60, "retention_days": 14, "series_hours": 6}
+}
+```
+
+```json
+// GET /api/tasks(公開的任務目錄與租借環境)
+{
+  "tasks": [{"kind": "train", "label": "機器學習訓練", "profile": "pytorch-2.4-train-v1",
+             "status": "planned", "inputs": "…", "artifacts": ["model.safetensors"],
+             "min_vram_mb": 12288, "note": "…"}],
+  "workspaces": [{"key": "pytorch", "label": "PyTorch 訓練環境",
+                  "image": "powershare/workspace-pytorch:2.4-cu124", "status": "planned",
+                  "entry": "jupyter", "min_vram_mb": 8192, "note": "…"}]
 }
 ```
 
@@ -578,14 +879,24 @@ class Event(models.Model):
 | POST | `/api/jobs/{id}/retry` | — | `Job` | 需登入(限本人) |
 | GET | `/api/jobs/{id}/input` | — | 原始檔案 | 需登入(限本人) |
 | GET | `/api/artifacts/{id}` | — | 成果檔案 | 需登入(限本人) |
+| GET | `/api/tasks` | — | `{tasks, workspaces}` | 公開 |
 | POST | `/api/pairing-codes` | — | `{code, expires_at}` | 需登入 |
-| PATCH | `/api/nodes/{id}` | `{name?, sharing?, revoked?, schedule_start?, schedule_end?, utc_offset_minutes?}` | `Node` | 需登入(限機主) |
+| PATCH | `/api/nodes/{id}` | `{name?, sharing?, allow_rental?, revoked?, schedule_start?, schedule_end?, utc_offset_minutes?}` | `Node` | 需登入(限機主) |
+| GET | `/api/usage/summary` | `?hours=`(1–72) | 見 §4.2 | 需登入 |
+| GET | `/api/usage/nodes/{id}` | `?hours=` | `{node, series}` | 需登入 |
+| GET | `/api/usage/export` | `?days=`(1–365)、`?node=` | CSV | 需登入 |
+| GET | `/api/rentals` | — | `{rentals, workspaces, limits, nodes_open_to_rental, queue_length}` | 需登入 |
+| POST | `/api/rentals` | `{workspace, minutes, purpose?}` | `201` `Rental` | 需登入 |
+| POST | `/api/rentals/{id}/cancel` | — | `Rental` | 需登入(限本人) |
 | POST | `/api/agent/pair` | `{code, name, gpu_uuid, gpu_name, memory_mb, capabilities, environment}` | `{node_id, token}` | 配對碼 |
-| POST | `/api/agent/heartbeat` | `{attempt_id?, local_enabled, capabilities?, environment?, telemetry?, stage?, progress?}` | `{stop, lease_seconds, sharing, within_schedule}` | 節點 token |
+| POST | `/api/agent/heartbeat` | `{attempt_id?, rental_id?, local_enabled, capabilities?, environment?, telemetry?, stage?, progress?}` | `{stop, lease_seconds, sharing, within_schedule}` | 節點 token |
 | POST | `/api/agent/claim` | — | `{assignment}` 或 `{assignment: null}` | 節點 token |
 | GET | `/api/agent/attempts/{id}/input` | — | 原始檔案 | 節點 token |
 | POST | `/api/agent/attempts/{id}/complete` | multipart:`files`、`metrics` | `200` | 節點 token |
 | POST | `/api/agent/attempts/{id}/fail` | `{reason}` | `200` | 節點 token |
+| POST | `/api/agent/rentals/claim` | — | `{rental}` 或 `{rental: null}` | 節點 token |
+| POST | `/api/agent/rentals/{id}/ready` | `{connect_url, connect_token?, connection?}` | `{status, expires_at}` | 節點 token |
+| POST | `/api/agent/rentals/{id}/ended` | `{reason?}` | `200` | 節點 token |
 | POST | `/api/ai/assist` | `{message}` | `{reply, batch}` | 需登入 |
 
 * 路徑結尾不加斜線;無法對應的 `/api/` 路徑一律回 JSON 404。
@@ -593,6 +904,8 @@ class Event(models.Model):
 * **節點 token**:`Authorization: Bearer <token>`,由 `agent pair` 取得,只存雜湊,撤銷後立即失效。
 * 存取他人的工作、成果或設備一律回 `404 NOT_FOUND`。
 * `claim` 的 `assignment` 欄位:`{attempt_id, job_id, kind, profile, input_url, input_bytes, lease_seconds}`。
+* `rentals/claim` 的 `rental` 欄位:`{rental_id, workspace, image, entry, minutes, lease_seconds}`。
+* 心跳的 `stop` 針對該次回報的項目:帶 `attempt_id` 時指工作,帶 `rental_id` 時指租借容器。
 
 ## 4.4 錯誤回傳格式
 
@@ -619,7 +932,10 @@ raise ApiError("超過每日上限", code="QUOTA_EXCEEDED", status_code=429)
 | `ATTEMPT_NOT_ACTIVE` | 409 | 該次執行已結束,結果不予採用 |
 | `JOB_NOT_ACTIVE` / `JOB_NOT_RETRYABLE` | 409 | 工作已結束 / 不可重送 |
 | `NODE_EXISTS` | 409 | 這張 GPU 已登錄過 |
-| `QUOTA_EXCEEDED` | 429 | 超過每日檔案上限 |
+| `RENTAL_TOO_LONG` | 400 | 租借時數超過單次上限(§4.10) |
+| `RENTAL_ALREADY_OPEN` | 409 | 已有一段進行中的租借 |
+| `RENTAL_NOT_ACTIVE` | 409 | 該段租借已結束 |
+| `QUOTA_EXCEEDED` | 429 | 超過每日檔案上限或每日租借時數上限 |
 | `THROTTLED` | 429 | 登入嘗試次數過多 |
 | `SERVER_ERROR` | 500 | 未預期錯誤(DEBUG 關閉時不含細節) |
 
@@ -640,7 +956,7 @@ from django.db.models import Count, Max, Q
 from django.utils import timezone
 
 from core.exceptions import ApiError
-from core.models import Attempt, Event, Job, Node
+from core.models import Attempt, Event, Job, Node, Rental
 
 
 def record(kind: str, message: str, *, user=None, node=None, job=None) -> None:
@@ -694,6 +1010,8 @@ def claim_job(node: Node) -> Attempt | None:
         return None
     if Attempt.objects.filter(node=node, ended_at__isnull=True).exists():
         return None
+    if Rental.objects.filter(node=node, status__in=Rental.ON_NODE).exists():
+        return None   # 互動式租借期間整台設備由租借者使用(§4.10)
 
     kinds = [kind for kind in node.capabilities if node.capabilities[kind].get("cuda_verified")]
     if not kinds:
@@ -890,6 +1208,7 @@ def check_daily_quota(user, file_count: int) -> None:
 * 派工在交易內鎖定節點;排序依 `User.last_dispatch`、建立時間,達到同時執行上限的使用者跳過。
 * 租約 20 秒,Agent 每 5 秒續約;逾時、機主收回或節點失聯都會結束該次執行並重新排隊。
 * 完成與失敗回報都會再次確認租約仍有效,逾時後送達的結果回 `ATTEMPT_NOT_ACTIVE`。
+* 節點上有進行中的互動式租借時不派工(§4.10);租借流程本身實作於 `core/rentals.py`,不改動本協定。
 
 ## 4.6 Agent 通道
 
@@ -903,6 +1222,18 @@ Agent 只發出 outbound 請求,機台零 inbound port。流程:
 
 只有 `capabilities` 通過驗證(模型版本相符且 `cuda_verified` 為 true)的任務類型會被接受,
 未通過自我測試的 GPU 無法配對,也無法在心跳中宣稱能力。
+
+**互動式租借共用同一條通道(§4.10)**
+
+* 機主開啟 `allow_rental` 後,Agent 另行呼叫 `POST /api/agent/rentals/claim`;
+  該節點有進行中的工作或租借時一律回 `{"rental": null}`。
+* 領取後啟動租借映像並備妥連線通道,以 `POST /api/agent/rentals/{id}/ready` 回報 `connect_url`
+  與 `connect_token`;逾 `RENTAL_START_SECONDS`(預設 180 秒)未回報即退回佇列。
+* 心跳改帶 `rental_id` 續約,`stop` 為 true 時立即停止容器並以
+  `POST /api/agent/rentals/{id}/ended` 回報。
+* 心跳同時依取樣間隔留存一筆用量紀錄(§4.9),Agent 端無須額外呼叫。
+
+> Agent 端的租借容器啟動與連線通道尚未實作(§1.4),此節定義的是平台端已就緒的介面。
 
 **Agent 端環境變數**
 
@@ -972,8 +1303,69 @@ try {
 登入後 token 更換也不受影響)、JSON 與 `FormData` 兩種 body、`204` 回傳 `null`、
 非 2xx 拋出含 `status`、`detail`、`code` 的 `ApiError`。
 
-* * *
+**各頁面的資料來源**
 
+| 頁面 | 模組 | 端點與更新頻率 |
+|---|---|---|
+| 工作台 `/workbench/` | `workbench.js` | `pollState()` 每 2 秒 `/api/state`;任務選單由 `state.tasks` 產生,`planned` 不可選 |
+| 我的設備 `/nodes/` | `nodes.js` | `pollState()`;`PATCH /api/nodes/{id}` 切換 `sharing` 與 `allow_rental` |
+| 儀表板 `/dashboard/` | `dashboard.js` | 每 5 秒 `/api/usage/summary`;曲線以內嵌 SVG 繪製,不使用外部圖表套件 |
+| 自由租借 `/rentals/` | `rentals.js` | 每 5 秒 `/api/rentals`;`POST /api/rentals` 申請、`/cancel` 結束 |
+| 即時看板 `/display/` | `display.js` | `pollState()`,大螢幕用 |
+| 服務說明 `/` | 無 | 公開頁面,純靜態內容 |
+
+## 4.9 用量取樣與儀表板
+
+> §4.9 與 §4.10 為初步版本,尚未納入凍結範圍(§4.1–§4.8 已凍結)。
+> 這兩節的欄位在機台端與容器方案確定前仍可能調整,變更時同樣須於群組公告。
+
+閒置算力儀表板的資料分兩層保存,實作於 `core/usage.py`,行為以 `tests/test_usage.py` 為準。
+
+| 層級 | 模型 | 寫入時機 | 保留期間 |
+|---|---|---|---|
+| 即時取樣 | `UsageSample` | Agent 心跳,每台節點最多每 `USAGE_SAMPLE_SECONDS`(預設 60 秒)一筆 | `USAGE_RETENTION_DAYS`(預設 14 天) |
+| 每日彙整 | `NodeDailyUsage` | 排程器每 `USAGE_ROLLUP_SECONDS`(預設 300 秒)重算當日,或 `aggregate_usage` 指令 | 永久 |
+
+* 取樣的 `state` 由平台判定(§4.1),不採信機台自述;`interval_seconds` 為距上一筆的秒數,
+  上限 15 分鐘,避免離線空窗灌入統計。
+* `busy_seconds` 只在 `busy` 與 `rented` 時累計;`NodeDailyUsage.gpu_seconds` 取自
+  `Attempt.metrics.gpu_seconds`(worker 實測),兩者意義不同,不可互相取代。
+* 彙整為冪等運算:同一天重算結果相同,可安全重跑。
+* 取樣清除後每日彙整仍保留,長期統計不受影響。
+* `GET /api/usage/export` 以串流輸出 CSV,欄位固定為
+  `day,node,gpu,busy_seconds,rented_seconds,idle_seconds,offline_seconds,gpu_seconds,jobs_completed,avg_utilization,peak_utilization`。
+
+## 4.10 互動式租借
+
+固定任務之外的第二種使用方式:使用者取得一個限時的 GPU 容器自行操作。
+狀態機實作於 `core/rentals.py`,行為以 `tests/test_rentals.py` 為準。
+
+| 項目 | 固定任務(§4.5) | 互動式租借 |
+|---|---|---|
+| 送出內容 | 檔案 | 時數與工作環境 |
+| 執行內容 | 平台定義的流程 | 使用者自行於容器內操作 |
+| 結束條件 | 工作完成 | 時數到期、使用者結束或機主收回 |
+| 中斷處理 | 自動重新排隊(最多三次) | 啟動中退回佇列;使用中標記 `failed`(容器狀態無法轉移) |
+| 設備範圍 | 所有分享中的設備 | 另行開啟 `allow_rental` 的設備 |
+
+**限制**(`backend/config/settings.py`)
+
+| 設定 | 預設 | 意義 |
+|---|---|---|
+| `RENTAL_MAX_MINUTES` | 120 | 單次租借時數上限 |
+| `RENTAL_DAILY_MINUTES` | 240 | 每人每日租借時數合計上限 |
+| `RENTAL_START_SECONDS` | 180 | 設備領取後須在此秒數內回報可連線 |
+
+* 每人同時只能有一段未結束的租借。
+* 時數自 `ready` 回報起算,不含容器啟動時間。
+* 結束時清除 `connect_url` 與 `connect_token`,權杖不再保留。
+* 租借期間該節點不再接受固定任務(`services.claim_job` 於領取時檢查)。
+
+**尚未完成**:機台端啟動容器與對外連線通道的方式待確認。
+校園機台位於 NAT 後方(§2.3),平台不會主動連入機台,連線須由機台端自行建立對外通道;
+候選方案與取捨見 [架構文件](docs/architecture.md)。在此之前,申請會停留在 `queued`。
+
+* * *
 # §5 資源安全與隔離設計
 
 > 「讓別人的程式在我的電腦上跑」是本專案最常被質疑的部分,全員都要能說明本章內容。
@@ -981,7 +1373,8 @@ try {
 
 | 機制 | 做法 | 對外說明 |
 |---|---|---|
-| 固定任務 | 只有兩種任務與固定模型版本,使用者不能指定命令、映像或參數 | 平台上跑的是平台自己的程式,不是使用者上傳的程式 |
+| 固定任務 | 任務類型與模型版本固定於任務目錄,使用者不能指定命令、映像或參數 | 平台上跑的是平台自己的程式,不是使用者上傳的程式 |
+| 互動式租借 | 機主須另行開啟 `allow_rental`;容器限時、到期自動回收,結束時清除連線權杖 | 願意開放自由操作的設備才會收到租借,且有時間上限 |
 | 容器隔離 | 無網路、唯讀根檔案系統、移除 Linux capabilities、禁止提權、限制 CPU/RAM/PID | 工作容器碰不到主機系統,也無法對外連線 |
 | GPU 分配 | 以 `--gpus` 指派整張 GPU 給單一工作獨占 | Docker 無法限制 GPU 使用率與顯示記憶體,因此不與他人共用同一張卡 |
 | 機主控制 | 網站分享開關與機台 `stop` 皆立即停止容器,檔案重新排隊 | 機主隨時可以收回設備,不必等工作結束 |
@@ -990,12 +1383,16 @@ try {
 | 節點驗證 | 每台設備一把 token,只存雜湊,配對碼一次性且 10 分鐘有效,可撤銷 | 無法冒用其他設備的身分接單 |
 | 帳號發放 | 由管理者批次建立個人帳號,密碼隨機產生 | 每位使用者的操作可個別追溯 |
 | 登入保護 | 每帳號每分鐘最多 10 次登入嘗試 | 降低密碼遭暴力破解的風險 |
-| 資料範圍 | 使用者只能存取自己的輸入與成果 | 成果不會被其他使用者看到 |
+| 資料範圍 | 使用者只能存取自己的輸入與成果;租借的連線資訊只回傳給租借者本人 | 成果不會被其他使用者看到 |
+| 用量紀錄 | 只記錄設備層級的狀態與使用率,不含使用者上傳內容 | 儀表板看得到機器忙不忙,看不到別人處理什麼檔案 |
 | 錯誤資訊 | 對外環境關閉 DEBUG,錯誤只回代碼 | 不外洩原始碼、路徑與連線字串 |
 
 **誠實說明的限制**:本版以受管理且信任的校內設備為前提。Agent 回報的 CUDA 與硬體佐證
 無法抵抗惡意機主偽造;機主也可能接觸自己設備處理的檔案;管理者可查看全平台資料。
 試用請使用公開或已取得同意的素材。
+
+互動式租借的風險高於固定任務:容器內由使用者自行操作,隔離參數(是否給網路、可用資源、
+可掛載的目錄)與稽核方式尚未定案,正式開放前須與設備提供單位確認,並於 §4.10 補上結論。
 
 * * *
 
@@ -1016,6 +1413,9 @@ try {
 | 6 | AI 使用報告 | `generate_usage_summary()` 產出含檔案數、GPU 秒數與參與設備的摘要;估算值註明計算方式 | 先以固定模板填入數值 |
 | 7 | 管理者報表 | Django Admin 可查詢各設備的執行次數與成功率 | 以 Admin 既有清單與篩選代替 |
 | 8 | 節點開放時段 | `schedule_start` / `schedule_end` 於網站可設定,超出時段不派工 | 僅提供分享開關,不做時段 |
+| 9 | 用量取樣與彙整(初步完成) | `tests/test_usage.py` 全數通過;排程器每 5 分鐘彙整,`aggregate_usage` 可手動重算 | — |
+| 10 | 互動式租借狀態機(初步完成) | `tests/test_rentals.py` 全數通過;逾時、到期與機主收回均正確結束 | — |
+| 11 | 租借配額與稽核 | 每人時數上限可由管理者依單位調整;租借的開始與結束皆留存事件 | 先以 `settings` 常數固定 |
 
 ## 6.2 機台 Agent / 容器負責人 — 擁有 `agent/`、`workers/`
 
@@ -1028,6 +1428,8 @@ try {
 | 5 | 機主收回 | 網站 OFF 與本機 `stop` 都能在數秒內停止容器,工作由其他設備接手 | — |
 | 6 | 資源限制 | `docker stats` 可見容器受限於 `AGENT_CPU_LIMIT` 與 `AGENT_MEM_LIMIT_GB` | 手動 `docker run` 驗證參數 |
 | 7 | 多 GPU 主機 | 每張卡以不同 `--dir` 與 `--gpu` 各自接單 | 單卡即可,多卡列為後續 |
+| 8 | 新增任務類型 | 依 §1.2 目錄補上容器與模型固定作業,`prepare` 通過自我測試後把 `status` 改為 `available` | 先完成一種(建議 `render`),其餘維持 `planned` |
+| 9 | 租借容器與通道 | Agent 實作 `rentals/claim` → 啟動映像 → `ready` → 心跳續約 → `ended`;決定對外通道方式並記錄於 §4.10 | 先於校內網路直連測試,對外通道列為待辦 |
 
 ## 6.3 前端 / 儀表板負責人 — 擁有 `frontend/`
 
@@ -1040,6 +1442,9 @@ try {
 | 5 | 開放時段設定 | 機主可於設備頁設定每日開放時段 | 由管理者於 Admin 設定 |
 | 6 | AI 助理對話框 | 顯示 AI 回覆與助理代為送出的批次 | — |
 | 7 | 使用報告頁 | 批次完成後顯示摘要與各設備的執行紀錄 | 先顯示原始數值 |
+| 8 | 閒置算力儀表板(初步完成) | `/dashboard/` 顯示各機台狀態、使用率曲線與每日用量,可匯出 CSV | — |
+| 9 | 自由租借頁(初步完成) | `/rentals/` 可申請、顯示排隊與連線資訊、結束租借 | — |
+| 10 | 儀表板細節 | 可切換時間範圍、點選單一機台查看細節(`/api/usage/nodes/{id}`) | 維持固定 6 小時範圍 |
 
 ## 6.4 測試 / 整合 / 部署負責人 — 擁有 `tests/`、`docker-compose.yml`、`scripts/`
 
@@ -1052,6 +1457,7 @@ try {
 | 5 | 效能量測 | `scripts/benchmark.py` 以相同檔案比較單機與三機,JSON 存於 `docs/measurements/` | 記錄單機基準,三機列為待辦 |
 | 6 | 驗收表維護 | [`docs/acceptance.csv`](docs/acceptance.csv) 每週更新,區分已驗證與待驗證 | — |
 | 7 | 異常演練 | 執行中拔網路線 / 關閉 Agent,工作於租約逾時後由其他設備完成 | 以關閉分享模擬 |
+| 8 | 用量資料驗證 | 連續執行數小時後,`aggregate_usage` 的每日數字與 `Attempt` 紀錄一致 | 以測試資料比對 |
 
 ## 6.5 使用者測試負責人 — 擁有使用者測試的計畫、紀錄與數據
 
@@ -1109,16 +1515,21 @@ try {
 | 測試數據混雜 | 受測者共用帳號會混淆數據 | 每人個人帳號(§6.5) |
 | Migration 衝突 | 多人同時改模型 | 僅後端負責人產生 migration(§0 規範 6) |
 | 證據被誤用 | 模擬測試被當成實機成果 | 驗收表與 §0 規範 8 |
+| 租借容器濫用 | 容器內可自行操作,可能被用於非授權用途 | 限時、機主自行選擇是否開放、保留操作紀錄;隔離參數未定前不對外開放(§5) |
+| 租借通道未定 | 機台位於 NAT 後方,連線方式尚未確認 | 先完成平台端流程,通道方案確定前申請停留在排隊中(§4.10) |
+| 任務目錄過度承諾 | 目錄列出的規劃中任務被誤認為可用 | 目錄以 `status` 標示,送出時由後端擋下,前端一律標註「準備中」 |
+| 用量資料膨脹 | 取樣筆數隨設備與時間成長 | 每台每分鐘最多一筆,逾期自動清除,長期只保留每日彙整(§4.9) |
 
 * * *
 
 # §9 未來擴充方向
 
-* **互動式租借** — 預約整台機器並以瀏覽器連入(需要中繼伺服器與反向隧道),適合需要自行開發的情境
-* **更多任務類型** — 依課程需求擴充固定任務(例如影像去背、模型推論)
+* **互動式租借的完整化** — 機台端容器與對外通道、資料保存策略、時段預約(平台端流程見 §4.10)
+* **更多任務類型** — 完成目錄中規劃中的任務,並依課程需求持續擴充(例如影像去背、模型推論)
+* **用量分析** — 由每日彙整推估尖峰時段與可節省的等待時間,供設備提供單位參考
 * **校外開放與收費** — 校外身分審核、額度與計費
 * **斷點續跑與跨機合併** — 長工作分段處理
-* **閒置時間預測** — 依歷史紀錄推薦送件時段
+* **閒置時間預測** — 以 `NodeDailyUsage` 的歷史紀錄推薦送件時段
 * **碳足跡統計** — 以可查證的電力碳排係數估算
 * **帳號系統整合** — 串接學校既有帳號或 Google 帳號
 

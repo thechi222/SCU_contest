@@ -20,6 +20,16 @@ def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in os.environ.get(name, default).split(",") if item.strip()]
 
 
+def env_int(name: str, default: int) -> int:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        raise ImproperlyConfigured(f"{name} 必須是整數") from None
+
+
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
@@ -115,6 +125,17 @@ MAX_FILE_BYTES = 50 * 1024 * 1024
 MAX_BATCH_FILES = 20
 MAX_BATCH_BYTES = 150 * 1024 * 1024
 MAX_IMAGE_SIZE = (2048, 2048)   # 放大任務的原圖尺寸上限
+
+# 用量取樣與儀表板(README §4.9)
+USAGE_SAMPLE_SECONDS = env_int("USAGE_SAMPLE_SECONDS", 60)    # 每台節點最多每 60 秒留存一筆取樣
+USAGE_RETENTION_DAYS = env_int("USAGE_RETENTION_DAYS", 14)    # 取樣保留天數(每日彙整永久保存)
+USAGE_ROLLUP_SECONDS = env_int("USAGE_ROLLUP_SECONDS", 300)   # 排程器重算當日彙整的間隔
+USAGE_SERIES_HOURS = env_int("USAGE_SERIES_HOURS", 6)         # 儀表板預設顯示的時間範圍
+
+# 互動式租借(README §4.10)
+RENTAL_MAX_MINUTES = env_int("RENTAL_MAX_MINUTES", 120)       # 單次租借時數上限
+RENTAL_DAILY_MINUTES = env_int("RENTAL_DAILY_MINUTES", 240)   # 每人每日租借時數上限
+RENTAL_START_SECONDS = env_int("RENTAL_START_SECONDS", 180)   # 節點領取後須在此秒數內回報可連線
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [FRONTEND_DIR / "static"]

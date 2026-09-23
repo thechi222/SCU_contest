@@ -35,7 +35,13 @@ function nodeRow(node) {
 
   const toggle = element("button", "link-button", node.sharing ? "關閉分享" : "開啟分享");
   toggle.addEventListener("click", () => patchNode(node.id, { sharing: !node.sharing }));
-  row.append(toggle, element("span", "node-local", node.local_enabled ? "機台已允許接單" : "機台尚未 enable"));
+
+  const rental = element("button", "link-button", node.allow_rental ? "停止接受租借" : "接受租借");
+  rental.title = "互動式租借期間,租借者可自行進入容器操作";
+  rental.addEventListener("click", () => patchNode(node.id, { allow_rental: !node.allow_rental }));
+
+  row.append(toggle, rental,
+             element("span", "node-local", node.local_enabled ? "機台已允許接單" : "機台尚未 enable"));
   return row;
 }
 

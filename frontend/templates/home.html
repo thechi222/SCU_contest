@@ -14,6 +14,7 @@
     </p>
     <div class="hero-actions">
       <a class="button" href="{% url 'workbench' %}">登入並送出工作</a>
+      <a class="button button-secondary" href="#rental">自由租借 GPU</a>
       <a class="button button-secondary" href="#provide">我要提供設備</a>
     </div>
   </div>
@@ -28,6 +29,8 @@
   <nav class="side-nav" aria-label="頁面目錄">
     <p class="side-nav-title">本頁內容</p>
     <a href="#services">提供的運算服務</a>
+    <a href="#rental">自由租借 GPU</a>
+    <a href="#dashboard">閒置算力儀表板</a>
     <a href="#limits">資源與使用限制</a>
     <a href="#apply">申請與使用流程</a>
     <a href="#provide">提供設備流程</a>
@@ -38,36 +41,115 @@
   <div class="side-nav-content">
     <section id="services">
       <h2>提供的運算服務</h2>
-      <p>目前提供兩種固定任務。使用者不需自行安裝環境,也不能指定執行的指令或模型,以降低設備提供者的風險。</p>
-      <table>
-        <caption>任務類型與輸出</caption>
-        <thead>
-          <tr><th scope="col">任務</th><th scope="col">輸入</th><th scope="col">輸出</th><th scope="col">使用的模型</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>語音轉逐字稿</td>
-            <td>音訊檔(例如課堂錄音、訪談錄音)</td>
-            <td>逐字稿 <code>transcript.txt</code>、字幕 <code>subtitles.srt</code></td>
-            <td>faster-whisper(whisper-small)</td>
-          </tr>
-          <tr>
-            <td>圖片 2 倍放大</td>
-            <td>圖片檔</td>
-            <td>放大後圖片 <code>upscaled.png</code></td>
-            <td>Real-ESRGAN x2</td>
-          </tr>
-        </tbody>
-      </table>
+      <p>
+        固定任務由平台準備好環境與模型,使用者只需上傳檔案,不必自行安裝,也不能指定執行的指令或模型,
+        以降低設備提供者的風險。標示「準備中」的任務已完成介面與成果規格定義,容器尚在建置,暫不開放送出。
+      </p>
+      <div class="table-scroll">
+        <table>
+          <caption>任務類型與輸出</caption>
+          <thead>
+            <tr>
+              <th scope="col">任務</th><th scope="col">輸入</th>
+              <th scope="col">輸出</th><th scope="col">使用的模型 / 工具</th><th scope="col">狀態</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>語音轉逐字稿</td>
+              <td>音訊檔(例如課堂錄音、訪談錄音)</td>
+              <td>逐字稿 <code>transcript.txt</code>、字幕 <code>subtitles.srt</code></td>
+              <td>faster-whisper(whisper-small)</td>
+              <td>已開放</td>
+            </tr>
+            <tr>
+              <td>圖片 2 倍放大</td>
+              <td>圖片檔</td>
+              <td>放大後圖片 <code>upscaled.png</code></td>
+              <td>Real-ESRGAN x2</td>
+              <td>已開放</td>
+            </tr>
+            <tr>
+              <td>3D 靜態算圖</td>
+              <td>Blender 場景檔(.blend)</td>
+              <td>算圖結果 <code>render.png</code> 與紀錄</td>
+              <td>Blender 4.2 Cycles</td>
+              <td>準備中</td>
+            </tr>
+            <tr>
+              <td>動畫影格算圖</td>
+              <td>Blender 場景檔與影格範圍</td>
+              <td>影格 <code>frames.zip</code>、預覽 <code>preview.mp4</code></td>
+              <td>Blender 4.2 Cycles</td>
+              <td>準備中</td>
+            </tr>
+            <tr>
+              <td>資料集批次處理</td>
+              <td>CSV / Parquet 資料集壓縮檔</td>
+              <td>處理後資料 <code>dataset.parquet</code>、統計 <code>summary.json</code></td>
+              <td>平台固定的清理與特徵流程</td>
+              <td>準備中</td>
+            </tr>
+            <tr>
+              <td>機器學習訓練</td>
+              <td>資料集與固定格式設定檔 <code>train.yaml</code></td>
+              <td>模型 <code>model.safetensors</code>、指標 <code>metrics.json</code></td>
+              <td>PyTorch 2.4(平台預定義骨架)</td>
+              <td>準備中</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <p class="note">
         逐字稿保留模型輸出的用字,中文可能出現簡體字,尚未整合字形轉換,建議自行校對後再使用。
         模型與授權來源見 repo 內的 <code>THIRD_PARTY.md</code>。
       </p>
     </section>
 
+    <section id="rental">
+      <h2>自由租借 GPU</h2>
+      <p>
+        固定任務無法涵蓋的需求(自行撰寫的程式、調整參數、互動式實驗),可改用租借方式:
+        向平台申請一段時間,由目前閒置且機主同意租借的設備啟動一個容器,使用者自行進入操作,到期自動回收。
+      </p>
+      <table>
+        <caption>兩種使用方式的差異</caption>
+        <thead>
+          <tr><th scope="col">項目</th><th scope="col">固定任務</th><th scope="col">自由租借</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">使用方式</th><td>上傳檔案,等待成果</td><td>進入容器自行操作</td></tr>
+          <tr><th scope="row">可執行的內容</th><td>平台定義的任務</td><td>容器內可自行執行</td></tr>
+          <tr><th scope="row">時間</th><td>依檔案長度,完成即釋放</td><td>依申請時數,到期回收</td></tr>
+          <tr><th scope="row">設備範圍</th><td>所有分享中的設備</td><td>僅機主另行同意租借的設備</td></tr>
+          <tr><th scope="row">目前狀態</th><td>語音與放大已開放</td><td>初步版本,連線方式確認中</td></tr>
+        </tbody>
+      </table>
+      <p class="note">
+        租借期間整台設備由租借者獨占,平台不會再派固定任務給該設備;
+        容器內的資料在結束時一併清除。申請與規範見 <a href="{% url 'rentals' %}">自由租借頁面</a>。
+      </p>
+    </section>
+
+    <section id="dashboard">
+      <h2>閒置算力儀表板</h2>
+      <p>
+        登入後可於 <a href="{% url 'dashboard' %}">閒置算力儀表板</a> 查看目前有哪些設備閒置、
+        各機台的 GPU 使用率與顯示記憶體用量,以及每日累計的運算時數與完成件數。
+      </p>
+      <ul class="rules">
+        <li>各機台狀態每分鐘留存一筆,保留兩週,供查看近期趨勢。</li>
+        <li>每日用量另行彙整長期保存,取樣清除後統計數字仍在。</li>
+        <li>可將每日用量匯出為 CSV,供設備提供單位報告使用情形。</li>
+      </ul>
+    </section>
+
     <section id="limits">
       <h2>資源與使用限制</h2>
-      <p>平台上的設備由校內單位自願提供,型號與數量會隨提供情況變動。登入後可於「即時看板」查看目前可用的設備與規格。</p>
+      <p>
+        平台上的設備由校內單位自願提供,型號與數量會隨提供情況變動。
+        登入後可於「閒置算力儀表板」查看目前可用的設備、規格與使用率。
+      </p>
       <table>
         <caption>使用限制</caption>
         <tbody>
@@ -77,6 +159,7 @@
           <tr><th scope="row">同時執行</th><td>每個帳號預設同時 2 件工作</td></tr>
           <tr><th scope="row">每日額度</th><td>每個帳號預設每日 100 個檔案</td></tr>
           <tr><th scope="row">執行方式</th><td>每件工作獨占一張 GPU,不跨機合併顯示記憶體</td></tr>
+          <tr><th scope="row">自由租借</th><td>單次最長 120 分鐘,每人每日合計 240 分鐘</td></tr>
         </tbody>
       </table>
       <p class="note">同時執行與每日額度可由管理者依實際設備數量調整。</p>
@@ -158,7 +241,10 @@
         <dd>系統會自動重試,含第一次最多三次。仍然失敗時會標示原因,可在工作台手動重送。</dd>
 
         <dt>可以自己安裝套件或跑自己的程式嗎?</dt>
-        <dd>目前不行。平台只提供上述兩種固定任務,這是為了讓提供設備的單位能放心分享。</dd>
+        <dd>
+          固定任務不行,這是為了讓提供設備的單位能放心分享。需要自行操作時請改用自由租借,
+          在限定時間內進入容器使用;該功能目前為初步版本,連線方式仍在確認。
+        </dd>
 
         <dt>要收費嗎?</dt>
         <dd>校內使用不收費。電費與設備折舊由提供設備的單位自行吸收。</dd>

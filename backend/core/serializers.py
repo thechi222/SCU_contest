@@ -1,10 +1,11 @@
 from django.conf import settings
+from django.utils import timezone
 from rest_framework import serializers
 
-from core.models import Artifact, Batch, Event, Job, Node, User
-from core.profiles import PROFILES
+from core.models import Artifact, Batch, Event, Job, Node, Rental, User
+from core.profiles import AVAILABLE_KINDS, PROFILES, TASKS, WORKSPACES
 
-KIND_CHOICES = list(PROFILES)
+KIND_CHOICES = list(PROFILES)        # 已定義的任務類型
 STAGES = ["下載輸入", "載入模型", "GPU 運算中", "上傳結果"]
 
 
@@ -50,7 +51,7 @@ class NodeSerializer(serializers.ModelSerializer):
         model = Node
         fields = [
             "id", "name", "owner_name", "is_mine", "gpu_name", "memory_mb", "kinds",
-            "sharing", "local_enabled", "revoked", "schedule_start", "schedule_end",
+            "sharing", "local_enabled", "allow_rental", "revoked", "schedule_start", "schedule_end",
             "utc_offset_minutes", "telemetry", "last_seen",
         ]
 
@@ -65,6 +66,7 @@ class NodeSerializer(serializers.ModelSerializer):
 class NodeUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=60, required=False)
     sharing = serializers.BooleanField(required=False)
+    allow_rental = serializers.BooleanField(required=False)
     revoked = serializers.BooleanField(required=False)
     schedule_start = serializers.RegexField(r"^(?:[01]\d|2[0-3]):[0-5]\d$", required=False, allow_null=True)
     schedule_end = serializers.RegexField(r"^(?:[01]\d|2[0-3]):[0-5]\d$", required=False, allow_null=True)
@@ -98,9 +100,17 @@ class BatchSerializer(serializers.ModelSerializer):
 
 
 class BatchCreateSerializer(serializers.Serializer):
-    kind = serializers.ChoiceField(choices=KIND_CHOICES)
+    kind = serializers.CharField()
     name = serializers.CharField(max_length=100)
     files = serializers.ListField(child=serializers.FileField(), allow_empty=False)
+
+    def validate_kind(self, value):
+        """只接受目前已有 worker 容器的任務類型;規劃中的類型先於目錄公告(§4.1)。"""
+        if value not in TASKS:
+            raise serializers.ValidationError("未知的任務類型")
+        if value not in AVAILABLE_KINDS:
+            raise serializers.ValidationError(f"{TASKS[value]['label']} 仍在準備中,尚未開放送出")
+        return value
 
     def validate_files(self, files):
         if len(files) > settings.MAX_BATCH_FILES:
@@ -158,6 +168,7 @@ class PairSerializer(serializers.Serializer):
 
 class HeartbeatSerializer(serializers.Serializer):
     attempt_id = serializers.UUIDField(required=False, allow_null=True)
+    rental_id = serializers.UUIDField(required=False, allow_null=True)
     local_enabled = serializers.BooleanField(default=False)
     capabilities = serializers.JSONField(required=False, default=dict, validators=[validate_capabilities])
     environment = serializers.JSONField(required=False, default=dict)
@@ -196,3 +207,54 @@ class AIAssistRequestSerializer(serializers.Serializer):
 class AIAssistResponseSerializer(serializers.Serializer):
     reply = serializers.CharField()                # 給使用者的自然語言回覆
     batch = BatchSerializer(allow_null=True)       # 若助理代為送出批次則帶回
+
+
+class RentalSerializer(serializers.ModelSerializer):
+    """互動式租借的回傳格式(§4.10)。連線資訊只會出現在租借者本人的資料中。"""
+
+    node_name = serializers.CharField(source="node.name", read_only=True, default=None)
+    workspace_label = serializers.SerializerMethodField()
+    seconds_left = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Rental
+        fields = [
+            "id", "workspace", "workspace_label", "image", "minutes", "purpose", "status",
+            "node_name", "connect_url", "connect_token", "connection", "seconds_left",
+            "created_at", "started_at", "expires_at", "ended_at", "end_reason",
+        ]
+
+    def get_workspace_label(self, rental) -> str:
+        return WORKSPACES.get(rental.workspace, {}).get("label", rental.workspace)
+
+    def get_seconds_left(self, rental) -> float | None:
+        if rental.status != Rental.Status.ACTIVE or rental.expires_at is None:
+            return None
+        return max(0.0, (rental.expires_at - timezone.now()).total_seconds())
+
+
+class RentalCreateSerializer(serializers.Serializer):
+    workspace = serializers.ChoiceField(choices=list(WORKSPACES))
+    minutes = serializers.IntegerField(min_value=10, max_value=settings.RENTAL_MAX_MINUTES)
+    purpose = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
+
+
+class RentalAssignmentSerializer(serializers.Serializer):
+    """POST /api/agent/rentals/claim 的回傳內容,欄位名稱須與 Agent 端一致。"""
+
+    rental_id = serializers.UUIDField()
+    workspace = serializers.CharField()
+    image = serializers.CharField()
+    entry = serializers.CharField()
+    minutes = serializers.IntegerField()
+    lease_seconds = serializers.FloatField()
+
+
+class RentalReadySerializer(serializers.Serializer):
+    connect_url = serializers.CharField(max_length=300)
+    connect_token = serializers.CharField(max_length=120, required=False, allow_blank=True, default="")
+    connection = serializers.JSONField(required=False, default=dict)
+
+
+class RentalEndedSerializer(serializers.Serializer):
+    reason = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")

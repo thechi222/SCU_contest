@@ -26,14 +26,24 @@ CONTRACT_ROUTES = [
     ("POST", f"/api/jobs/{SAMPLE_UUID}/retry"),
     ("GET", f"/api/jobs/{SAMPLE_UUID}/input"),
     ("GET", f"/api/artifacts/{SAMPLE_UUID}"),
+    ("GET", "/api/tasks"),
     ("POST", "/api/pairing-codes"),
     ("PATCH", f"/api/nodes/{SAMPLE_UUID}"),
+    ("GET", "/api/usage/summary"),
+    ("GET", "/api/usage/export"),
+    ("GET", f"/api/usage/nodes/{SAMPLE_UUID}"),
+    ("GET", "/api/rentals"),
+    ("POST", "/api/rentals"),
+    ("POST", f"/api/rentals/{SAMPLE_UUID}/cancel"),
     ("POST", "/api/agent/pair"),
     ("POST", "/api/agent/heartbeat"),
     ("POST", "/api/agent/claim"),
     ("GET", f"/api/agent/attempts/{SAMPLE_UUID}/input"),
     ("POST", f"/api/agent/attempts/{SAMPLE_UUID}/complete"),
     ("POST", f"/api/agent/attempts/{SAMPLE_UUID}/fail"),
+    ("POST", "/api/agent/rentals/claim"),
+    ("POST", f"/api/agent/rentals/{SAMPLE_UUID}/ready"),
+    ("POST", f"/api/agent/rentals/{SAMPLE_UUID}/ended"),
     ("POST", "/api/ai/assist"),
 ]
 
@@ -45,7 +55,7 @@ def test_contract_route_registered(method, path):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("path", ["/api/state", "/api/auth/me", "/api/batches"])
+@pytest.mark.parametrize("path", ["/api/state", "/api/auth/me", "/api/batches", "/api/rentals"])
 def test_user_routes_require_login(client, path):
     response = client.get(path)
     assert response.status_code == 403
@@ -56,6 +66,16 @@ def test_user_routes_require_login(client, path):
 def test_health_is_public(client):
     response = client.get("/api/health")
     assert response.status_code == 200 and response.json()["status"] == "ok"
+
+
+@pytest.mark.django_db
+def test_task_catalog_is_public_and_marks_planned_tasks(client):
+    body = client.get("/api/tasks").json()
+
+    kinds = {task["kind"]: task["status"] for task in body["tasks"]}
+    assert kinds["asr"] == "available"
+    assert kinds["train"] == "planned"
+    assert {workspace["key"] for workspace in body["workspaces"]} >= {"pytorch"}
 
 
 @pytest.mark.django_db

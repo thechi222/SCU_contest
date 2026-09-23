@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}閒置算力儀表板{% endblock %}
+{% block breadcrumb_current %}閒置算力儀表板{% endblock %}
+
+{% block content %}
+<h1>閒置算力儀表板</h1>
+<p class="note">
+  每 5 秒更新一次。狀態取樣每 <span id="sample-seconds">—</span> 秒留存一筆,
+  保留 <span id="retention-days">—</span> 天;逾期的取樣清除後,每日用量統計仍會保留。
+</p>
+
+<section>
+  <h2>目前狀況</h2>
+  <div id="usage-totals" class="metric-grid"></div>
+  <p id="usage-updated" class="note"></p>
+</section>
+
+<section>
+  <h2>各機台使用情況</h2>
+  <div class="table-scroll">
+    <table class="usage-table">
+      <caption>機台目前狀態與最近 <span id="series-hours">—</span> 小時的 GPU 使用率</caption>
+      <thead>
+        <tr>
+          <th scope="col">機台</th>
+          <th scope="col">GPU</th>
+          <th scope="col">狀態</th>
+          <th scope="col">使用率</th>
+          <th scope="col">顯示記憶體</th>
+          <th scope="col">溫度 / 功耗</th>
+          <th scope="col">今日執行</th>
+          <th scope="col">近期曲線</th>
+        </tr>
+      </thead>
+      <tbody id="usage-nodes"></tbody>
+    </table>
+  </div>
+  <p id="usage-empty" class="empty"></p>
+</section>
+
+<section>
+  <h2>每日用量</h2>
+  <p class="note">由取樣彙整而成,可匯出為 CSV 留存。</p>
+  <p>
+    <a class="link-button" id="export-30" href="/api/usage/export?days=30">匯出最近 30 天(CSV)</a>
+    <a class="link-button" id="export-365" href="/api/usage/export?days=365">匯出最近一年(CSV)</a>
+  </p>
+  <div class="table-scroll">
+    <table class="usage-table">
+      <caption>全平台每日用量</caption>
+      <thead>
+        <tr>
+          <th scope="col">日期</th>
+          <th scope="col">執行工作</th>
+          <th scope="col">互動式租借</th>
+          <th scope="col">閒置</th>
+          <th scope="col">GPU 運算時數</th>
+          <th scope="col">完成工作數</th>
+        </tr>
+      </thead>
+      <tbody id="usage-days"></tbody>
+    </table>
+  </div>
+  <p id="days-empty" class="empty"></p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}自由租借 GPU{% endblock %}
+{% block breadcrumb_current %}自由租借 GPU{% endblock %}
+
+{% block content %}
+<h1>自由租借 GPU</h1>
+<p class="lead-text">
+  固定任務之外的另一種用法:向平台借一台閒置的 GPU 機器,在限定時間內進入容器自行操作,
+  適合需要自己寫程式、調參數或跑實驗的情況。容器與時數由平台控制,到期後自動回收。
+</p>
+
+<div class="notice">
+  <strong>目前狀態:初步版本。</strong>
+  平台端的申請、排隊、時數與回收流程已可運作;機台端啟動容器與對外連線通道的方式仍在確認,
+  申請送出後會停留在「排隊中」。連線方式確定前請勿用於有時效的課程或研究工作。
+</div>
+
+<div class="with-side-nav">
+  <nav class="side-nav" aria-label="頁面目錄">
+    <p class="side-nav-title">本頁內容</p>
+    <a href="#apply">提出申請</a>
+    <a href="#current">目前的租借</a>
+    <a href="#history">歷史紀錄</a>
+    <a href="#rules">租借規範</a>
+  </nav>
+
+  <div class="side-nav-content">
+    <section id="apply" class="card">
+      <h2>提出申請</h2>
+      <form id="rental-form" class="form-grid">
+        <label>工作環境
+          <select name="workspace" id="rental-workspace" required></select>
+        </label>
+        <label>時數(分鐘)
+          <input type="number" name="minutes" id="rental-minutes" min="10" step="10" value="60" required>
+        </label>
+        <label>用途(選填)
+          <input type="text" name="purpose" maxlength="200" placeholder="例如:專題模型訓練">
+        </label>
+        <button type="submit">送出申請</button>
+      </form>
+      <p id="rental-workspace-note" class="note"></p>
+      <p id="rental-limits" class="note"></p>
+      <p id="rental-error" class="error" role="alert"></p>
+    </section>
+
+    <section id="current">
+      <h2>目前的租借</h2>
+      <div id="rental-current"></div>
+    </section>
+
+    <section id="history">
+      <h2>歷史紀錄</h2>
+      <div class="table-scroll">
+        <table class="usage-table">
+          <caption>最近 20 筆租借</caption>
+          <thead>
+            <tr>
+              <th scope="col">申請時間</th>
+              <th scope="col">環境</th>
+              <th scope="col">時數</th>
+              <th scope="col">設備</th>
+              <th scope="col">狀態</th>
+              <th scope="col">結束原因</th>
+            </tr>
+          </thead>
+          <tbody id="rental-history"></tbody>
+        </table>
+      </div>
+      <p id="rental-empty" class="empty"></p>
+    </section>
+
+    <section id="rules">
+      <h2>租借規範</h2>
+      <ul class="rules">
+        <li>容器內的資料在租借結束後一併清除,請自行下載需要保留的檔案。</li>
+        <li>租借期間整台設備由租借者獨占,平台不會再派固定任務給該設備。</li>
+        <li>機主隨時可收回設備;收回時容器立即停止,恕不保留執行中的狀態。</li>
+        <li>僅開放已由機主另行同意「接受互動式租借」的設備,數量會少於一般設備。</li>
+        <li>不得於容器內從事挖礦、破解、攻擊或其他違反使用規範的行為,系統保留完整操作紀錄。</li>
+      </ul>
+      <p class="note">詳細條款見 <a href="{% url 'home' %}#rules">使用規範</a>,正式上線前須經權責單位核定。</p>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/rentals.js' %}"></script>
+{% endblock %}

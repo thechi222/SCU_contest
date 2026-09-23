@@ -391,3 +391,71 @@ button:hover, .button:hover { background: var(--navy-dark); }
   .side-nav { position: static; flex-basis: 100%; }
   tbody th[scope="row"] { width: auto; }
 }
+
+/* 狀態標籤(工作、設備狀態與租借共用) */
+.status-idle, .status-active { background: var(--ok-bg); color: var(--ok-text); }
+.status-busy, .status-rented, .status-starting { background: #fdf3dd; color: #7a5410; }
+.status-paused, .status-ending { background: var(--surface); color: var(--muted); }
+.status-expired, .status-cancelled { background: var(--surface); color: var(--muted); }
+
+/* 儀表板 */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.metric {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--navy);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.metric-label { margin: 0; font-size: 0.85rem; color: var(--muted); }
+.metric-value { margin: 0.2rem 0 0; font-size: 1.8rem; font-weight: 700; color: var(--navy); line-height: 1.2; }
+.metric-hint { margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--muted); }
+
+.table-scroll { overflow-x: auto; }
+.usage-table { min-width: 44rem; }
+.usage-table th[scope="row"] { white-space: nowrap; }
+.cell-muted { color: var(--muted); font-size: 0.88rem; }
+.tag {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--navy-light);
+  color: var(--navy-dark);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.bar-box { display: flex; align-items: center; gap: 0.5rem; }
+.bar {
+  flex: 1;
+  min-width: 4rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--navy-light);
+  overflow: hidden;
+}
+.bar-fill { display: block; height: 100%; background: var(--navy); }
+.bar-text { font-size: 0.85rem; color: var(--muted); min-width: 2.6rem; text-align: right; }
+
+.sparkline { width: 8.75rem; height: 2rem; }
+.sparkline path { fill: none; stroke: var(--navy); stroke-width: 1.5; }
+
+/* 自由租借 */
+.lead-text { font-size: 1.02rem; }
+.notice {
+  margin: 1.25rem 0;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  background: var(--surface);
+}
+.rental-card { margin-bottom: 1rem; }
+.rental-card h3 { margin-top: 0; }
+.rental-countdown { font-weight: 700; color: var(--navy); }
+.rental-link { word-break: break-all; }

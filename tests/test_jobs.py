@@ -32,6 +32,14 @@ def test_upload_rejects_too_many_files(settings, client, user):
     assert response.status_code == 400 and response.json()["code"] == "VALIDATION_ERROR"
 
 
+def test_upload_rejects_task_that_is_not_open_yet(client, user):
+    client.force_login(user)
+
+    response = upload(client, kind="train")
+
+    assert response.status_code == 400 and response.json()["code"] == "VALIDATION_ERROR"
+
+
 def test_upload_rejects_oversized_file(settings, client, user):
     settings.MAX_FILE_BYTES = 8
     client.force_login(user)
