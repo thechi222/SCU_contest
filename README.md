@@ -98,13 +98,14 @@ PowerShare 讓機主把自己的 GPU 掛上平台、隨時可以收回,並提供
 
 ## 1.3 運作方式
 
-1. **機主掛上設備** — 機台執行 `agent prepare` 下載模型並實跑 CUDA 自我測試,通過後以一次性配對碼登錄平台。
-2. **使用者送出工作** — 上傳一批檔案,每個檔案成為一件可獨立排隊、重試的工作。
-3. **平台派工** — 依公平順序把工作派給閒置設備,給 20 秒租約;Agent 每 5 秒續約。
-4. **機主隨時可收回** — 關閉分享或本機停止後,容器立即停止,未完成的檔案重新排隊。
-5. **取回成果** — 使用者下載單一成果或整批 ZIP;成果只有本人看得到。
-6. **另一條路徑:互動式租借** — 使用者申請時數,平台派給開放租借的設備啟動容器並轉交連線資訊,到期或機主收回時停止。
-7. **用量留存** — 每次心跳依取樣間隔留存一筆機台狀態,並彙整為每日用量,於儀表板呈現與匯出。
+1. **使用者註冊** — 校內師生以學號(教職員為員工編號)自行註冊,或由管理者批次建立帳號(§4.11)。
+2. **機主掛上設備** — 機台執行 `agent prepare` 下載模型並實跑 CUDA 自我測試,通過後以一次性配對碼登錄平台。
+3. **使用者送出工作** — 上傳一批檔案,每個檔案成為一件可獨立排隊、重試的工作。
+4. **平台派工** — 依公平順序把工作派給閒置設備,給 20 秒租約;Agent 每 5 秒續約。
+5. **機主隨時可收回** — 關閉分享或本機停止後,容器立即停止,未完成的檔案重新排隊。
+6. **取回成果** — 使用者下載單一成果或整批 ZIP;成果只有本人看得到。
+7. **另一條路徑:互動式租借** — 使用者申請時數,平台派給開放租借的設備啟動容器並轉交連線資訊,到期或機主收回時停止。
+8. **用量留存** — 每次心跳依取樣間隔留存一筆機台狀態,並彙整為每日用量,於儀表板呈現與匯出。
 
 ## 1.4 範圍界定
 
@@ -116,6 +117,7 @@ PowerShare 讓機主把自己的 GPU 掛上平台、隨時可以收回,並提供
 * 上傳限制、每人同時執行上限與每日額度
 * 閒置算力儀表板:機台狀態取樣、每日用量彙整與 CSV 匯出(§4.9)
 * 互動式租借:申請、排隊、時數控制與回收(§4.10,平台端)
+* 以學號註冊與登入,帳號可設為須經管理者核可(§4.11)
 * AI 助理(以自然語言送出工作與說明佇列狀態)
 * 使用者測試所需的個人帳號批次建立
 
@@ -128,6 +130,7 @@ PowerShare 讓機主把自己的 GPU 掛上平台、隨時可以收回,並提供
 **不包含**
 
 * 校外人士使用、收費與額度交易
+* 串接學校帳號系統驗證身分(目前學號與身分為自行申報,見 §5)
 * 跨機合併顯示記憶體、斷點續跑
 * 使用者自行提供程式碼或映像給固定任務執行
 * 可信硬體認證(詳見 §5)
@@ -297,8 +300,8 @@ SCU_contest/
 │   ├── upscale.Dockerfile
 │   └── models.json               模型版本與權重來源
 ├── frontend/                     [前端] 由 Django 直接提供
-│   ├── templates/                base、home、login、workbench、nodes、dashboard、rentals、assistant、display
-│   └── static/                   css/style.css、js/(api、auth、login、workbench、nodes、dashboard、rentals、display、assistant)
+│   ├── templates/                base、home、register、login、workbench、nodes、dashboard、rentals、assistant、display
+│   └── static/                   css/style.css、js/(api、auth、register、login、workbench、nodes、dashboard、rentals、display、assistant)
 ├── scripts/                      [測試/整合] benchmark、憑證與素材產生
 ├── demo-assets/                  展示素材(離線合成語音與團隊產生的校準圖片)
 ├── docs/                         架構、部署、驗收表、實測紀錄、展示腳本
@@ -310,7 +313,8 @@ SCU_contest/
 | 路徑 | 內容 | 是否需登入 |
 |---|---|---|
 | `/` | 服務說明:服務內容、任務目錄、限制、申請與提供設備流程、使用規範 | 公開 |
-| `/login/` | 登入 | 公開 |
+| `/register/` | 註冊帳號(學號、姓名、身分、密碼) | 公開 |
+| `/login/` | 登入(學號 + 密碼) | 公開 |
 | `/workbench/` | 工作台:送出批次、查看與取消自己的工作、下載成果 | 需登入 |
 | `/rentals/` | 自由租借:申請時數、查看連線資訊與結束租借(§4.10) | 需登入 |
 | `/dashboard/` | 閒置算力儀表板:各機台狀態、使用率曲線、每日用量與 CSV 匯出(§4.9) | 需登入 |
@@ -360,11 +364,12 @@ pytest
 **建立受測者帳號**
 
 ```bash
-# accounts.csv 欄位:email,name,role(role 為 student 或 staff)
+# accounts.csv 欄位:student_id,name,role[,email](role 為 student 或 staff)
 python manage.py import_users accounts.csv --output ~/powershare-credentials.csv
 ```
 
 密碼隨機產生,只寫入 `--output` 指定的檔案(檔案已存在時拒絕執行),請存放於 repo 以外的位置。
+使用者也可於 `/register/` 自行註冊;不希望開放時設定 `REGISTRATION_OPEN=0`(§4.11)。
 
 啟動後:前端 http://localhost:8000/ ,管理後台 http://localhost:8000/admin/ 。
 
@@ -378,6 +383,7 @@ python manage.py import_users accounts.csv --output ~/powershare-credentials.csv
 4. 使用固定網域的 tunnel;臨時網域每次重啟都會變更。
 5. `/admin/` 以 tunnel 的存取控制限制或僅於本機使用,管理者帳號使用長隨機密碼。
 6. 停用示範帳號(Django Admin 取消 `is_active`),受測者使用個人帳號。
+   視情況設定 `REGISTRATION_OPEN=0`(只用配發帳號)或 `REGISTRATION_REQUIRE_APPROVAL=1`(註冊後須核可)。
 7. 對外開放前,以受測帳號實際完成一次「登入 → 上傳 → 取得成果」。
 
 區域網路的憑證與三台機台的部署見 [部署說明](docs/deployment.md)。
@@ -503,12 +509,49 @@ def workspace_catalog() -> list[dict]:
 
 ```python
 # ---- backend/core/models.py(後端負責人維護,全員唯讀參照)----
+import re
 import uuid
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.core.validators import RegexValidator
 from django.db import models
 
 from core.profiles import PROFILES
+
+STUDENT_ID_PATTERN = r"^[A-Za-z0-9]{4,20}$"
+validate_student_id = RegexValidator(STUDENT_ID_PATTERN, "學號應為 4–20 碼英數字")
+
+
+def normalize_student_id(value: str) -> str:
+    """去除空白與分隔符號並轉大寫,避免同一組學號因輸入格式不同重複註冊。"""
+    return re.sub(r"[\s-]", "", str(value or "")).upper()
+
+
+class UserManager(BaseUserManager):
+    """以學號為帳號識別。AbstractUser 的 username 一律填入相同的學號。"""
+
+    use_in_migrations = True
+
+    def _create(self, student_id, password, **extra):
+        student_id = normalize_student_id(student_id)
+        if not student_id:
+            raise ValueError("學號不得為空")
+        email = self.normalize_email(extra.pop("email", "") or "")
+        user = self.model(student_id=student_id, username=student_id, email=email, **extra)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_user(self, student_id, password=None, **extra):
+        extra.setdefault("is_staff", False)
+        extra.setdefault("is_superuser", False)
+        return self._create(student_id, password, **extra)
+
+    def create_superuser(self, student_id, password=None, **extra):
+        extra.update(is_staff=True, is_superuser=True)
+        extra.setdefault("role", "staff")
+        extra.setdefault("name", normalize_student_id(student_id))
+        return self._create(student_id, password, **extra)
 
 
 def job_input_path(instance, filename):
@@ -524,19 +567,28 @@ class User(AbstractUser):
         STUDENT = "student", "學生"
         STAFF = "staff", "教職員"
 
-    email = models.EmailField(unique=True)
+    student_id = models.CharField(                                 # 學號;教職員為員工編號
+        max_length=20, unique=True, validators=[validate_student_id],
+    )
+    email = models.EmailField(blank=True, default="")              # 選填的聯絡信箱,不用於登入
     name = models.CharField(max_length=100)
     role = models.CharField(max_length=10, choices=Role.choices)   # 無預設值,建立帳號時須指定
     max_running = models.PositiveSmallIntegerField(default=2)      # 同時執行中的工作上限
     daily_limit = models.PositiveIntegerField(default=100)         # 每日提交檔案數上限
     last_dispatch = models.BigIntegerField(default=0)              # 公平派工用的序號,越小越優先
 
-    USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["username", "name", "role"]
+    objects = UserManager()
+
+    USERNAME_FIELD = "student_id"
+    REQUIRED_FIELDS = ["name", "role"]
 
     class Meta:
         constraints = [
             models.CheckConstraint(condition=models.Q(role__in=["student", "staff"]), name="user_role_valid"),
+            # 信箱為選填,只有填了才要求不重複
+            models.UniqueConstraint(
+                fields=["email"], condition=~models.Q(email=""), name="unique_email_when_set",
+            ),
         ]
 
 
@@ -780,6 +832,8 @@ class Event(models.Model):
 | Job | `failed` | 已達重試上限(`MAX_JOB_ATTEMPTS`,預設 3) |
 | Job | `cancelled` | 使用者取消,不自動重試,可手動重送 |
 | Attempt | `outcome` = `succeeded` / `failed` / `expired` / `cancelled` | 成功 / 執行失敗 / 租約逾時 / 機主收回或使用者取消 |
+| User | `student_id` | 登入識別;教職員為員工編號,正規化為大寫英數字 |
+| User | `is_active` | 停用或尚未核可的帳號無法登入 |
 | Node | `sharing` | 機主於網站開啟分享 |
 | Node | `local_enabled` | 機台端 `agent enable`(心跳回報) |
 | Node | `allow_rental` | 機主另行同意接受互動式租借(§4.10) |
@@ -798,7 +852,7 @@ class Event(models.Model):
 ```json
 // GET /api/state
 {
-  "user": {"id": 1, "email": "student@scu.edu.tw", "name": "示範學生", "role": "student",
+  "user": {"id": 1, "student_id": "11172001", "email": "", "name": "示範學生", "role": "student",
            "max_running": 2, "daily_limit": 100, "is_admin": false},
   "nodes": [{"id": "…", "name": "實驗室 RTX 3090", "owner_name": "王老師", "is_mine": false,
              "gpu_name": "NVIDIA RTX 3090", "memory_mb": 24576, "kinds": ["asr", "upscale"],
@@ -875,7 +929,8 @@ class Event(models.Model):
 |---|---|---|---|---|
 | GET | `/api/health` | — | `{"status": "ok"}` | 公開 |
 | GET | `/api/state` | — | 見 §4.2 | 需登入 |
-| POST | `/api/auth/login` | `{email, password}` | `User` | 公開(每帳號每分鐘 10 次) |
+| POST | `/api/auth/register` | `{student_id, name, role, password, email?}` | `201` `User`,或 `{status: "pending"}` | 公開(每位址每小時 5 次) |
+| POST | `/api/auth/login` | `{student_id, password}` | `User` | 公開(每學號每分鐘 10 次) |
 | POST | `/api/auth/logout` | — | `204` | 需登入 |
 | GET | `/api/auth/me` | — | `User` | 需登入 |
 | POST | `/api/auth/password` | `{current_password, new_password}` | `204` | 需登入 |
@@ -929,7 +984,9 @@ raise ApiError("超過每日上限", code="QUOTA_EXCEEDED", status_code=429)
 |---|---|---|
 | `VALIDATION_ERROR` | 400 | 欄位驗證失敗(含檔案大小、數量、圖片尺寸) |
 | `ARTIFACT_MISMATCH` | 400 | 成果檔名與任務類型不符 |
-| `LOGIN_FAILED` | 403 | 帳號或密碼不正確 |
+| `LOGIN_FAILED` | 403 | 學號或密碼不正確 |
+| `ACCOUNT_INACTIVE` | 403 | 帳號已停用或尚未經管理者核可 |
+| `REGISTRATION_CLOSED` | 403 | 目前未開放自行註冊 |
 | `NOT_AUTHENTICATED` | 403 | 未登入,或 Agent 未附 token |
 | `AUTHENTICATION_FAILED` | 403 | 節點 token 無效或已撤銷 |
 | `PERMISSION_DENIED` | 403 | 權限不足(含 CSRF 驗證失敗) |
@@ -1371,6 +1428,38 @@ try {
 校園機台位於 NAT 後方(§2.3),平台不會主動連入機台,連線須由機台端自行建立對外通道;
 候選方案與取捨見 [架構文件](docs/architecture.md)。在此之前,申請會停留在 `queued`。
 
+## 4.11 帳號與註冊
+
+登入識別為**學號**(教職員為員工編號),不使用電子郵件。信箱為選填的聯絡欄位,填了才要求不重複。
+
+| 欄位 | 規則 |
+|---|---|
+| `student_id` | 4–20 碼英數字;輸入時可夾帶空白或 `-`,一律去除並轉大寫後儲存與比對 |
+| `name` | 最長 100 字 |
+| `role` | `student` 或 `staff`,**使用者自行申報**,配額仍由管理者調整 |
+| `password` | 至少 12 碼,另經 Django 內建密碼檢核(相似度、常見密碼、純數字) |
+| `email` | 選填;未填為空字串,填寫時以條件式唯一索引確保不重複 |
+
+**兩種帳號來源**
+
+1. 自行註冊 `/register/` → `POST /api/auth/register`
+2. 管理者批次建立 `python manage.py import_users accounts.csv --output <路徑>`(欄位 `student_id,name,role[,email]`)
+
+**設定**(`backend/config/settings.py`,可由環境變數覆寫)
+
+| 設定 | 預設 | 意義 |
+|---|---|---|
+| `REGISTRATION_OPEN` | `1` | 設為 `0` 時關閉自行註冊,只接受管理者建立的帳號 |
+| `REGISTRATION_REQUIRE_APPROVAL` | `0` | 設為 `1` 時註冊的帳號先停用,由管理者於 Admin 的「核可帳號」動作啟用 |
+
+* 註冊成功且無須核可時直接建立 session 並回傳 `User`;須核可時回傳 `{"status": "pending"}`,不建立 session。
+* 停用中的帳號登入回 `ACCOUNT_INACTIVE`,與密碼錯誤的 `LOGIN_FAILED` 區分,以免使用者反覆嘗試密碼。
+* 註冊依來源位址節流(每小時 5 次),登入依學號節流(每分鐘 10 次)。
+* `AbstractUser.username` 保留但一律填入相同的學號,由 `UserManager` 與 Admin 表單處理。
+
+> 本節與 §4.9、§4.10 同為初步版本,尚未納入凍結範圍。
+> 學號與身分目前為自行申報,正式上線前應串接校內帳號系統驗證(§5、§9)。
+
 * * *
 # §5 資源安全與隔離設計
 
@@ -1387,11 +1476,15 @@ try {
 | 自我測試 | 只有通過 CUDA 自我測試、模型版本相符的設備能登錄與接單 | 不會把工作派給沒有能力完成的機器 |
 | 網路方向 | 全部由機台主動 outbound,機台零 inbound port | 不需要在校園網路開放任何連接埠 |
 | 節點驗證 | 每台設備一把 token,只存雜湊,配對碼一次性且 10 分鐘有效,可撤銷 | 無法冒用其他設備的身分接單 |
-| 帳號發放 | 由管理者批次建立個人帳號,密碼隨機產生 | 每位使用者的操作可個別追溯 |
-| 登入保護 | 每帳號每分鐘最多 10 次登入嘗試 | 降低密碼遭暴力破解的風險 |
+| 帳號發放 | 以學號自行註冊,或由管理者批次建立;密碼至少 12 碼並經內建檢核 | 每位使用者的操作可個別追溯 |
+| 註冊控管 | 可關閉自行註冊或改為須管理者核可;註冊依來源位址節流 | 需要時可只接受配發帳號 |
+| 登入保護 | 每學號每分鐘最多 10 次登入嘗試 | 降低密碼遭暴力破解的風險 |
 | 資料範圍 | 使用者只能存取自己的輸入與成果;租借的連線資訊只回傳給租借者本人 | 成果不會被其他使用者看到 |
 | 用量紀錄 | 只記錄設備層級的狀態與使用率,不含使用者上傳內容 | 儀表板看得到機器忙不忙,看不到別人處理什麼檔案 |
 | 錯誤資訊 | 對外環境關閉 DEBUG,錯誤只回代碼 | 不外洩原始碼、路徑與連線字串 |
+
+**帳號的限制**:註冊時的學號與身分為使用者自行申報,平台未與校內帳號系統或學籍資料核對,
+也未寄送信箱驗證信。對外開放前應改為串接校內帳號登入,或關閉自行註冊改由承辦單位配發帳號(§4.11)。
 
 **誠實說明的限制**:本版以受管理且信任的校內設備為前提。Agent 回報的 CUDA 與硬體佐證
 無法抵抗惡意機主偽造;機主也可能接觸自己設備處理的檔案;管理者可查看全平台資料。
@@ -1422,6 +1515,8 @@ try {
 | 9 | 用量取樣與彙整(初步完成) | `tests/test_usage.py` 全數通過;排程器每 5 分鐘彙整,`aggregate_usage` 可手動重算 | — |
 | 10 | 互動式租借狀態機(初步完成) | `tests/test_rentals.py` 全數通過;逾時、到期與機主收回均正確結束 | — |
 | 11 | 租借配額與稽核 | 每人時數上限可由管理者依單位調整;租借的開始與結束皆留存事件 | 先以 `settings` 常數固定 |
+| 12 | 註冊與學號登入(初步完成) | `tests/test_auth.py` 全數通過;可切換關閉註冊或須核可 | — |
+| 13 | 校內帳號整合 | 以學校既有帳號系統驗證身分,取代自行申報 | 維持自行註冊,並由管理者抽查學號 |
 
 ## 6.2 機台 Agent / 容器負責人 — 擁有 `agent/`、`workers/`
 
@@ -1450,6 +1545,7 @@ try {
 | 7 | 使用報告頁 | 批次完成後顯示摘要與各設備的執行紀錄 | 先顯示原始數值 |
 | 8 | 閒置算力儀表板(初步完成) | `/dashboard/` 顯示各機台狀態、使用率曲線與每日用量,可匯出 CSV | — |
 | 9 | 自由租借頁(初步完成) | `/rentals/` 可申請、顯示排隊與連線資訊、結束租借 | — |
+| 11 | 註冊與登入頁(初步完成) | `/register/` 可建立帳號,登入改用學號 | — |
 | 10 | 儀表板細節 | 可切換時間範圍、點選單一機台查看細節(`/api/usage/nodes/{id}`) | 維持固定 6 小時範圍 |
 
 ## 6.4 測試 / 整合 / 部署負責人 — 擁有 `tests/`、`docker-compose.yml`、`scripts/`
@@ -1481,7 +1577,7 @@ try {
 # §7 整合驗收(全員)
 
 ```
-1. 以個人帳號登入
+1. 以學號註冊帳號並登入(或使用管理者配發的帳號)
      ↓
 2. 機主於 /nodes/ 開啟分享,機台 agent enable
      ↓
@@ -1530,6 +1626,7 @@ try {
 | 對外部署設定 | tunnel、CSRF 或 DEBUG 設定錯誤 | 依 §3.4 設定,測試前實際演練 |
 | 資料保存 | 使用者上傳內容的保存與清除未定 | 測試期間明訂保存期限,結束後清除 |
 | 測試數據混雜 | 受測者共用帳號會混淆數據 | 每人個人帳號(§6.5) |
+| 冒用學號註冊 | 學號為自行申報,可能被冒用或亂填 | 需要時關閉自行註冊或改為須核可;正式上線串接校內帳號(§4.11、§5) |
 | Migration 衝突 | 多人同時改模型 | 僅後端負責人產生 migration(§0 規範 6) |
 | 證據被誤用 | 模擬測試被當成實機成果 | 驗收表與 §0 規範 8 |
 | 租借容器濫用 | 容器內可自行操作,可能被用於非授權用途 | 限時、機主自行選擇是否開放、保留操作紀錄;隔離參數未定前不對外開放(§5) |
@@ -1548,7 +1645,7 @@ try {
 * **斷點續跑與跨機合併** — 長工作分段處理
 * **閒置時間預測** — 以 `NodeDailyUsage` 的歷史紀錄推薦送件時段
 * **碳足跡統計** — 以可查證的電力碳排係數估算
-* **帳號系統整合** — 串接學校既有帳號或 Google 帳號
+* **帳號系統整合** — 串接學校既有帳號(取代目前自行申報的學號註冊,見 §4.11)
 
 * * *
 

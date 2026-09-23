@@ -9,7 +9,10 @@
   <section class="card">
     <h1>登入</h1>
     <form id="login-form" class="form-grid">
-      <label>電子郵件 <input type="email" name="email" autocomplete="username" required></label>
+      <label>學號 / 員工編號
+        <input type="text" name="student_id" autocomplete="username" inputmode="latin"
+               maxlength="20" required>
+      </label>
       <label>密碼 <input type="password" name="password" autocomplete="current-password" required></label>
       <button type="submit">登入</button>
     </form>
@@ -18,8 +21,9 @@
 
   <aside class="card card-muted">
     <h2>沒有帳號?</h2>
-    <p>本平台不開放自行註冊,帳號由承辦單位建立。申請方式待確認。</p>
-    <p>首次登入後請立即更換初始密碼。</p>
+    <p>校內師生可以學號(教職員為員工編號)自行 <a href="{% url 'register' %}">註冊帳號</a>。</p>
+    <p>由承辦單位建立的帳號,首次登入後請立即更換初始密碼。</p>
+    <p>忘記密碼請聯絡承辦單位重設(聯絡方式待確認)。</p>
     <p>服務內容與使用規範見 <a href="{% url 'home' %}">服務說明</a>。</p>
   </aside>
 </div>

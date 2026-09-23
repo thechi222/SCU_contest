@@ -1,9 +1,46 @@
+import re
 import uuid
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.core.validators import RegexValidator
 from django.db import models
 
 from core.profiles import PROFILES
+
+STUDENT_ID_PATTERN = r"^[A-Za-z0-9]{4,20}$"
+validate_student_id = RegexValidator(STUDENT_ID_PATTERN, "學號應為 4–20 碼英數字")
+
+
+def normalize_student_id(value: str) -> str:
+    """去除空白與分隔符號並轉大寫,避免同一組學號因輸入格式不同重複註冊。"""
+    return re.sub(r"[\s-]", "", str(value or "")).upper()
+
+
+class UserManager(BaseUserManager):
+    """以學號為帳號識別。AbstractUser 的 username 一律填入相同的學號。"""
+
+    use_in_migrations = True
+
+    def _create(self, student_id, password, **extra):
+        student_id = normalize_student_id(student_id)
+        if not student_id:
+            raise ValueError("學號不得為空")
+        email = self.normalize_email(extra.pop("email", "") or "")
+        user = self.model(student_id=student_id, username=student_id, email=email, **extra)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_user(self, student_id, password=None, **extra):
+        extra.setdefault("is_staff", False)
+        extra.setdefault("is_superuser", False)
+        return self._create(student_id, password, **extra)
+
+    def create_superuser(self, student_id, password=None, **extra):
+        extra.update(is_staff=True, is_superuser=True)
+        extra.setdefault("role", "staff")
+        extra.setdefault("name", normalize_student_id(student_id))
+        return self._create(student_id, password, **extra)
 
 
 def job_input_path(instance, filename):
@@ -19,19 +56,28 @@ class User(AbstractUser):
         STUDENT = "student", "學生"
         STAFF = "staff", "教職員"
 
-    email = models.EmailField(unique=True)
+    student_id = models.CharField(                                 # 學號;教職員為員工編號
+        max_length=20, unique=True, validators=[validate_student_id],
+    )
+    email = models.EmailField(blank=True, default="")              # 選填的聯絡信箱,不用於登入
     name = models.CharField(max_length=100)
     role = models.CharField(max_length=10, choices=Role.choices)   # 無預設值,建立帳號時須指定
     max_running = models.PositiveSmallIntegerField(default=2)      # 同時執行中的工作上限
     daily_limit = models.PositiveIntegerField(default=100)         # 每日提交檔案數上限
     last_dispatch = models.BigIntegerField(default=0)              # 公平派工用的序號,越小越優先
 
-    USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["username", "name", "role"]
+    objects = UserManager()
+
+    USERNAME_FIELD = "student_id"
+    REQUIRED_FIELDS = ["name", "role"]
 
     class Meta:
         constraints = [
             models.CheckConstraint(condition=models.Q(role__in=["student", "staff"]), name="user_role_valid"),
+            # 信箱為選填,只有填了才要求不重複
+            models.UniqueConstraint(
+                fields=["email"], condition=~models.Q(email=""), name="unique_email_when_set",
+            ),
         ]
 
 

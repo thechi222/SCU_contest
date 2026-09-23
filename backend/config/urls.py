@@ -16,6 +16,7 @@ urlpatterns = [
     path("api/", include("core.urls")),
     path("", page("home.html", "home"), name="home"),
     path("login/", page("login.html", "login"), name="login"),
+    path("register/", page("register.html", "register"), name="register"),
     path("workbench/", page("workbench.html", "workbench"), name="workbench"),
     path("nodes/", page("nodes.html", "nodes"), name="nodes"),
     path("dashboard/", page("dashboard.html", "dashboard"), name="dashboard"),

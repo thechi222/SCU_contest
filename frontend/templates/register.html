@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}註冊帳號{% endblock %}
+{% block breadcrumb_current %}註冊帳號{% endblock %}
+
+{% block content %}
+<div class="login-layout">
+  <section class="card">
+    <h1>註冊帳號</h1>
+    <form id="register-form" class="form-grid">
+      <label>學號 / 員工編號
+        <input type="text" name="student_id" autocomplete="username" inputmode="latin"
+               maxlength="20" placeholder="4–20 碼英數字" required>
+      </label>
+      <label>姓名 <input type="text" name="name" autocomplete="name" maxlength="100" required></label>
+      <label>身分
+        <select name="role" required>
+          <option value="student">學生</option>
+          <option value="staff">教職員</option>
+        </select>
+      </label>
+      <label>密碼
+        <input type="password" name="password" autocomplete="new-password" minlength="12" required>
+      </label>
+      <label>確認密碼
+        <input type="password" name="password_confirm" autocomplete="new-password" minlength="12" required>
+      </label>
+      <label>聯絡信箱(選填)
+        <input type="email" name="email" autocomplete="email" placeholder="用於聯絡,不用於登入">
+      </label>
+      <button type="submit">建立帳號</button>
+    </form>
+    <p id="register-error" class="error" role="alert"></p>
+    <p id="register-done" class="note" role="status"></p>
+  </section>
+
+  <aside class="card card-muted">
+    <h2>註冊須知</h2>
+    <ul class="rules">
+      <li>以學號(教職員為員工編號)作為登入帳號,註冊後不可更改。</li>
+      <li>密碼至少 12 碼,不可與學號或姓名過於相似,也不可為常見密碼。</li>
+      <li>身分為自行申報,使用額度由管理者依實際情況調整。</li>
+      <li>本服務僅供校內教學、學術與研究用途,請詳閱 <a href="{% url 'home' %}#rules">使用規範</a>。</li>
+    </ul>
+    <p class="note">已經有帳號了?<a href="{% url 'login' %}">前往登入</a>。</p>
+  </aside>
+</div>
+{% endblock %}
+
+{% block auth_script %}{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/register.js' %}"></script>
+{% endblock %}

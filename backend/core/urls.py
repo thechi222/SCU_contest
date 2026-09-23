@@ -6,6 +6,7 @@ urlpatterns = [
     path("health", state.HealthView.as_view()),
     path("state", state.StateView.as_view()),
     path("tasks", state.TaskCatalogView.as_view()),
+    path("auth/register", auth.RegisterView.as_view()),
     path("auth/login", auth.LoginView.as_view()),
     path("auth/logout", auth.LogoutView.as_view()),
     path("auth/me", auth.MeView.as_view()),

@@ -16,6 +16,7 @@ SAMPLE_UUID = "00000000-0000-0000-0000-000000000000"
 CONTRACT_ROUTES = [
     ("GET", "/api/health"),
     ("GET", "/api/state"),
+    ("POST", "/api/auth/register"),
     ("POST", "/api/auth/login"),
     ("POST", "/api/auth/logout"),
     ("GET", "/api/auth/me"),
@@ -93,20 +94,21 @@ def test_server_error_returns_json_for_api_paths():
 
 @pytest.mark.django_db
 def test_login_and_logout(client, make_user):
-    user = make_user(email="login@scu.edu.tw")
+    user = make_user(student_id="LOGIN001")
     user.set_password("correct-horse-battery")
     user.save(update_fields=["password"])
 
     bad = client.post(
-        "/api/auth/login", {"email": user.email, "password": "wrong"}, content_type="application/json",
+        "/api/auth/login", {"student_id": user.student_id, "password": "wrong"},
+        content_type="application/json",
     )
     assert bad.status_code == 403 and bad.json()["code"] == "LOGIN_FAILED"
 
     good = client.post(
-        "/api/auth/login", {"email": user.email, "password": "correct-horse-battery"},
+        "/api/auth/login", {"student_id": user.student_id, "password": "correct-horse-battery"},
         content_type="application/json",
     )
-    assert good.status_code == 200 and good.json()["email"] == user.email
+    assert good.status_code == 200 and good.json()["student_id"] == user.student_id
     assert client.get("/api/auth/me").status_code == 200
     assert client.post("/api/auth/logout").status_code == 204
     assert client.get("/api/auth/me").status_code == 403
@@ -115,7 +117,7 @@ def test_login_and_logout(client, make_user):
 @pytest.mark.django_db
 def test_login_is_throttled_per_account(client):
     cache.clear()
-    payload = {"email": "tester@scu.edu.tw", "password": "wrong-password"}
+    payload = {"student_id": "THROTTLE1", "password": "wrong-password"}
     statuses = [
         client.post("/api/auth/login", payload, content_type="application/json").status_code
         for _ in range(11)
@@ -127,6 +129,4 @@ def test_login_is_throttled_per_account(client):
 @pytest.mark.django_db
 def test_user_role_is_required():
     with pytest.raises(IntegrityError):
-        User.objects.create_user(
-            username="norole@scu.edu.tw", email="norole@scu.edu.tw", name="無身分", password="unused",
-        )
+        User.objects.create_user(student_id="NOROLE01", name="無身分", password="unused")

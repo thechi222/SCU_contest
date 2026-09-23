@@ -1,8 +1,8 @@
 import { api, ApiError, element } from "./api.js";
 
 const container = document.getElementById("current-user");
-// 服務說明為公開頁面,未登入時只在頁首顯示登入連結,不強制導向
-const PUBLIC_PAGES = ["home"];
+// 服務說明與註冊為公開頁面,未登入時只在頁首顯示登入連結,不強制導向
+const PUBLIC_PAGES = ["home", "register"];
 const optional = PUBLIC_PAGES.includes(document.body.dataset.page);
 
 function showLoginLink() {

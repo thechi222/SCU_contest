@@ -6,6 +6,7 @@ from core import rentals as rental_service
 from core import services
 from core.models import (
     Artifact, Attempt, Batch, Event, Job, Node, NodeDailyUsage, Rental, UsageSample, User,
+    normalize_student_id,
 )
 
 
@@ -13,7 +14,17 @@ from core.models import (
 class PowerShareUserCreationForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("email", "username", "name", "role")
+        fields = ("student_id", "name", "role", "email")
+
+    def save(self, commit=True):
+        # 帳號識別為學號;AbstractUser 的 username 一律填入相同值
+        user = super().save(commit=False)
+        user.student_id = normalize_student_id(user.student_id)
+        user.username = user.student_id
+        user.email = user.email or ""
+        if commit:
+            user.save()
+        return user
 
 
 class PowerShareUserChangeForm(UserChangeForm):
@@ -25,18 +36,30 @@ class PowerShareUserChangeForm(UserChangeForm):
 class PowerShareUserAdmin(UserAdmin):
     form = PowerShareUserChangeForm
     add_form = PowerShareUserCreationForm
-    fieldsets = UserAdmin.fieldsets + (
-        ("PowerShare", {"fields": ("name", "role", "max_running", "daily_limit")}),
+    fieldsets = (
+        (None, {"fields": ("student_id", "password")}),
+        ("PowerShare", {"fields": ("name", "role", "email", "max_running", "daily_limit")}),
+        ("權限", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
+        ("重要日期", {"fields": ("last_login", "date_joined")}),
     )
     add_fieldsets = (
         (None, {
             "classes": ("wide",),
-            "fields": ("email", "username", "name", "role", "password1", "password2"),
+            "fields": ("student_id", "name", "role", "email", "password1", "password2"),
         }),
     )
-    list_display = ("email", "name", "role", "max_running", "daily_limit", "is_active", "is_staff")
+    list_display = (
+        "student_id", "name", "role", "is_active", "max_running", "daily_limit", "is_staff",
+    )
     list_filter = ("role", "is_active", "is_staff")
-    ordering = ("email",)
+    search_fields = ("student_id", "name", "email")
+    ordering = ("student_id",)
+    actions = ["approve_users"]
+
+    @admin.action(description="核可帳號(啟用登入)")
+    def approve_users(self, request, queryset):
+        approved = queryset.filter(is_active=False).update(is_active=True)
+        self.message_user(request, f"已核可 {approved} 個帳號")
 
 
 @admin.register(Node)

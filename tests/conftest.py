@@ -19,10 +19,10 @@ def isolated_media_root(settings, tmp_path):
 
 @pytest.fixture
 def make_user(db):
-    def factory(email="tester@scu.edu.tw", role="student", **fields):
+    def factory(student_id="TESTER01", role="student", **fields):
+        fields.setdefault("name", student_id)
         return User.objects.create_user(
-            username=email, email=email, name=email.split("@")[0], role=role,
-            password="unused-password", **fields,
+            student_id=student_id, role=role, password="unused-password", **fields,
         )
     return factory
 
@@ -35,7 +35,7 @@ def user(make_user):
 @pytest.fixture
 def make_node(db, make_user):
     def factory(owner=None, token=NODE_TOKEN, kinds=("asr",), **fields):
-        owner = owner or make_user(email=f"owner-{token[:6]}@scu.edu.tw", role="staff")
+        owner = owner or make_user(student_id=f"OWNER{abs(hash(token)) % 10000:04d}", role="staff")
         defaults = {"sharing": True, "local_enabled": True}
         return Node.objects.create(
             owner=owner, name=f"node-{token[:6]}", token_hash=hash_token(token),

@@ -52,7 +52,7 @@ def test_node_skips_kinds_it_cannot_run(make_node, user, make_job):
 
 
 def test_running_limit_per_user(make_node, make_user, make_job):
-    limited = make_user(email="limited@scu.edu.tw", max_running=1)
+    limited = make_user(student_id="LIMIT001", max_running=1)
     make_job(limited, filename="a.wav")
     make_job(limited, filename="b.wav")
     first, second = make_node(token="node-a"), make_node(token="node-b")
@@ -62,16 +62,16 @@ def test_running_limit_per_user(make_node, make_user, make_job):
 
 
 def test_fair_dispatch_alternates_between_users(make_node, make_user, make_job):
-    early = make_user(email="early@scu.edu.tw")
-    late = make_user(email="late@scu.edu.tw")
+    early = make_user(student_id="EARLY001")
+    late = make_user(student_id="LATE0001")
     make_job(early, filename="early-1.wav")
     make_job(early, filename="early-2.wav")
     make_job(late, filename="late-1.wav")
     nodes = [make_node(token=f"node-{index}") for index in range(3)]
 
-    owners = [services.claim_job(node).job.user.email for node in nodes]
+    owners = [services.claim_job(node).job.user.student_id for node in nodes]
 
-    assert owners[:2] == ["early@scu.edu.tw", "late@scu.edu.tw"]
+    assert owners[:2] == ["EARLY001", "LATE0001"]
 
 
 def test_lease_expiry_requeues_job(node, user, make_job, expire_lease):
@@ -168,7 +168,7 @@ def test_cancel_ends_active_attempt(node, user, make_job):
 
 
 def test_daily_quota_blocks_extra_files(make_user, make_job):
-    limited = make_user(email="quota@scu.edu.tw", daily_limit=1)
+    limited = make_user(student_id="QUOTA001", daily_limit=1)
     make_job(limited)
 
     with pytest.raises(ApiError) as error:

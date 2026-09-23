@@ -50,7 +50,7 @@ def test_upload_rejects_oversized_file(settings, client, user):
 
 
 def test_upload_respects_daily_limit(client, make_user):
-    limited = make_user(email="quota@scu.edu.tw", daily_limit=1)
+    limited = make_user(student_id="QUOTA001", daily_limit=1)
     client.force_login(limited)
 
     assert upload(client, count=1).status_code == 201
@@ -79,8 +79,8 @@ def test_cancel_and_retry_own_job(client, user, make_job):
 
 
 def test_cannot_touch_other_users_job(client, make_user, make_job):
-    job = make_job(make_user(email="owner@scu.edu.tw"))
-    client.force_login(make_user(email="other@scu.edu.tw"))
+    job = make_job(make_user(student_id="OWNER001"))
+    client.force_login(make_user(student_id="OTHER001"))
 
     for path in (f"/api/jobs/{job.id}/cancel", f"/api/jobs/{job.id}/retry"):
         response = client.post(path)
@@ -95,7 +95,7 @@ def test_owner_can_toggle_sharing_but_others_cannot(client, node, make_user):
         f"/api/nodes/{node.id}", {"sharing": True}, content_type="application/json",
     ).json()["sharing"] is True
 
-    client.force_login(make_user(email="stranger@scu.edu.tw"))
+    client.force_login(make_user(student_id="STRAN001"))
     response = client.patch(
         f"/api/nodes/{node.id}", {"sharing": False}, content_type="application/json",
     )

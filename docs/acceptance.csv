@@ -23,3 +23,6 @@ AI 助理,tests 待補,未實作,,backend/core/ai_assistant.py 為介面定義
 租借的機台端容器與連線通道,agent 端實作,未實作,,通道方案待確認（docs/architecture.md）
 規劃中任務（render / animate / dataset / train）的容器,agent prepare,未實作,,目錄已定義，容器與模型待建置
 儀表板長時間實機資料,連續執行數小時後比對 aggregate_usage,待驗證,,需實機與 GPU
+以學號註冊與登入,tests/test_auth.py,已驗證,pytest 通過,含關閉註冊與須核可兩種設定
+註冊與登入節流,tests/test_auth.py::test_registration_is_throttled_per_address,已驗證,pytest 通過,
+校內帳號系統整合,串接學校帳號登入,未實作,,目前學號與身分為自行申報

@@ -13,12 +13,12 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         for data in SEED_USERS:
-            if User.objects.filter(email=data["email"]).exists():
-                self.stdout.write(f"user {data['email']}: exists, unchanged")
+            if User.objects.filter(student_id=data["student_id"]).exists():
+                self.stdout.write(f"user {data['student_id']}: exists, unchanged")
                 continue
             password = secrets.token_urlsafe(12)
-            User.objects.create_user(username=data["email"], password=password, **data)
-            self.stdout.write(f"user {data['email']}: created, password {password}")
+            User.objects.create_user(password=password, **data)
+            self.stdout.write(f"user {data['student_id']}: created, password {password}")
 
         self.stdout.write(
             "GPU 節點不由 seed 建立;請於網站取得配對碼後,在機台執行 agent pair。"

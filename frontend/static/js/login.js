@@ -10,7 +10,7 @@ form.addEventListener("submit", async (event) => {
   try {
     await api("/api/auth/login", {
       method: "POST",
-      body: { email: data.get("email"), password: data.get("password") },
+      body: { student_id: data.get("student_id"), password: data.get("password") },
     });
     window.location.assign("/workbench/");
   } catch (err) {

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -7,8 +8,11 @@ from rest_framework.views import APIView
 
 from core import services
 from core.exceptions import ApiError
-from core.serializers import LoginSerializer, PasswordChangeSerializer, UserSerializer
-from core.throttles import LoginRateThrottle
+from core.models import User
+from core.serializers import (
+    LoginSerializer, PasswordChangeSerializer, RegisterSerializer, UserSerializer,
+)
+from core.throttles import LoginRateThrottle, RegisterRateThrottle
 
 
 class LoginView(APIView):
@@ -19,10 +23,19 @@ class LoginView(APIView):
         data = LoginSerializer(data=request.data)
         data.is_valid(raise_exception=True)
         user = authenticate(
-            request, email=data.validated_data["email"], password=data.validated_data["password"],
+            request,
+            student_id=data.validated_data["student_id"],
+            password=data.validated_data["password"],
         )
         if user is None:
-            raise ApiError("帳號或密碼不正確", code="LOGIN_FAILED", status_code=403)
+            inactive = User.objects.filter(
+                student_id=data.validated_data["student_id"], is_active=False,
+            ).exists()
+            if inactive:
+                raise ApiError(
+                    "這個帳號尚未啟用,請等待管理者核可", code="ACCOUNT_INACTIVE", status_code=403,
+                )
+            raise ApiError("學號或密碼不正確", code="LOGIN_FAILED", status_code=403)
         login(request, user)
         services.record("auth", "登入", user=user)
         return Response(UserSerializer(user).data)
@@ -55,3 +68,37 @@ class PasswordChangeView(APIView):
         update_session_auth_hash(request, request.user)
         services.record("auth", "變更密碼", user=request.user)
         return Response(status=204)
+
+
+class RegisterView(APIView):
+    """以學號自行註冊。需要審核時帳號先建立為停用狀態,由管理者於 Admin 啟用(README §4.11)。"""
+
+    permission_classes = [AllowAny]
+    throttle_classes = [RegisterRateThrottle]
+
+    def post(self, request):
+        if not settings.REGISTRATION_OPEN:
+            raise ApiError("目前未開放自行註冊", code="REGISTRATION_CLOSED", status_code=403)
+
+        data = RegisterSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        payload = data.validated_data
+
+        try:
+            validate_password(payload["password"])
+        except ValidationError as exc:
+            raise ApiError(" ".join(exc.messages), code="VALIDATION_ERROR", status_code=400) from exc
+
+        user = User.objects.create_user(
+            student_id=payload["student_id"], password=payload["password"],
+            name=payload["name"], role=payload["role"], email=payload.get("email", ""),
+            is_active=not settings.REGISTRATION_REQUIRE_APPROVAL,
+        )
+        services.record("auth", f"{user.student_id} 註冊帳號", user=user)
+
+        if not user.is_active:
+            return Response(
+                {"status": "pending", "detail": "帳號已建立,待管理者核可後才能登入"}, status=201,
+            )
+        login(request, user)
+        return Response(UserSerializer(user).data, status=201)

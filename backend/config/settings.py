@@ -126,6 +126,11 @@ MAX_BATCH_FILES = 20
 MAX_BATCH_BYTES = 150 * 1024 * 1024
 MAX_IMAGE_SIZE = (2048, 2048)   # 放大任務的原圖尺寸上限
 
+# 帳號註冊(README §4.11)
+REGISTRATION_OPEN = os.environ.get("REGISTRATION_OPEN", "1") == "1"
+# 設為 1 時,註冊的帳號先停用,待管理者於 Django Admin 核可後才能登入
+REGISTRATION_REQUIRE_APPROVAL = os.environ.get("REGISTRATION_REQUIRE_APPROVAL", "0") == "1"
+
 # 用量取樣與儀表板(README §4.9)
 USAGE_SAMPLE_SECONDS = env_int("USAGE_SAMPLE_SECONDS", 60)    # 每台節點最多每 60 秒留存一筆取樣
 USAGE_RETENTION_DAYS = env_int("USAGE_RETENTION_DAYS", 14)    # 取樣保留天數(每日彙整永久保存)
@@ -153,5 +158,6 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "core.exceptions.api_exception_handler",
     "DEFAULT_THROTTLE_RATES": {
         "login": "10/min",
+        "register": "5/hour",
     },
 }

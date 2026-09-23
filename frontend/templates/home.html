@@ -13,7 +13,8 @@
       需要運算的師生上傳檔案後,由目前閒置的設備接手處理,完成後取回成果。
     </p>
     <div class="hero-actions">
-      <a class="button" href="{% url 'workbench' %}">登入並送出工作</a>
+      <a class="button" href="{% url 'register' %}">註冊並開始使用</a>
+      <a class="button button-secondary" href="{% url 'workbench' %}">登入並送出工作</a>
       <a class="button button-secondary" href="#rental">自由租借 GPU</a>
       <a class="button button-secondary" href="#provide">我要提供設備</a>
     </div>
@@ -160,6 +161,7 @@
           <tr><th scope="row">每日額度</th><td>每個帳號預設每日 100 個檔案</td></tr>
           <tr><th scope="row">執行方式</th><td>每件工作獨占一張 GPU,不跨機合併顯示記憶體</td></tr>
           <tr><th scope="row">自由租借</th><td>單次最長 120 分鐘,每人每日合計 240 分鐘</td></tr>
+          <tr><th scope="row">帳號</th><td>以學號註冊,一人一組;額度由管理者依實際情況調整</td></tr>
         </tbody>
       </table>
       <p class="note">同時執行與每日額度可由管理者依實際設備數量調整。</p>
@@ -169,12 +171,15 @@
       <h2>申請與使用流程</h2>
       <ol class="steps">
         <li>
-          <h3>申請帳號</h3>
-          <p>本平台不開放自行註冊,帳號由承辦單位建立後提供。申請方式與表單待確認。</p>
+          <h3>註冊帳號</h3>
+          <p>
+            校內師生可於 <a href="{% url 'register' %}">註冊頁面</a> 以學號(教職員為員工編號)自行建立帳號,
+            密碼至少 12 碼。身分為自行申報,使用額度由管理者調整。
+          </p>
         </li>
         <li>
-          <h3>登入並修改密碼</h3>
-          <p>首次登入請立即更換初始密碼。</p>
+          <h3>登入</h3>
+          <p>以學號與密碼登入。由承辦單位建立的帳號,首次登入請立即更換初始密碼。</p>
         </li>
         <li>
           <h3>上傳檔案</h3>

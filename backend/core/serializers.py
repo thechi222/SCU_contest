@@ -2,7 +2,9 @@ from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 
-from core.models import Artifact, Batch, Event, Job, Node, Rental, User
+from core.models import (
+    Artifact, Batch, Event, Job, Node, Rental, User, normalize_student_id, validate_student_id,
+)
 from core.profiles import AVAILABLE_KINDS, PROFILES, TASKS, WORKSPACES
 
 KIND_CHOICES = list(PROFILES)        # 已定義的任務類型
@@ -29,12 +31,42 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "name", "role", "max_running", "daily_limit", "is_admin"]
+        fields = ["id", "student_id", "email", "name", "role",
+                  "max_running", "daily_limit", "is_admin"]
+
+
+class StudentIdField(serializers.CharField):
+    """學號欄位:允許輸入時夾帶空白或連字號,一律正規化後再比對。"""
+
+    def to_internal_value(self, data):
+        return normalize_student_id(super().to_internal_value(data))
 
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    student_id = StudentIdField(max_length=30)
     password = serializers.CharField(write_only=True)
+
+
+class RegisterSerializer(serializers.Serializer):
+    """自行註冊。身分為使用者自行申報,配額仍由管理者調整(README §4.11)。"""
+
+    student_id = StudentIdField(max_length=30)
+    name = serializers.CharField(max_length=100)
+    role = serializers.ChoiceField(choices=User.Role.choices)
+    password = serializers.CharField(write_only=True, min_length=12)
+    email = serializers.EmailField(required=False, allow_blank=True, default="")
+
+    def validate_student_id(self, value):
+        validate_student_id(value)                                  # 4–20 碼英數字
+        if User.objects.filter(student_id=value).exists():
+            raise serializers.ValidationError("這個學號已經註冊過")
+        return value
+
+    def validate_email(self, value):
+        value = value.strip().lower()
+        if value and User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("這個信箱已經使用過")
+        return value
 
 
 class PasswordChangeSerializer(serializers.Serializer):
