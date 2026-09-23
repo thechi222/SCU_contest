@@ -9,11 +9,15 @@
   <section class="card">
     <h1>註冊帳號</h1>
     <form id="register-form" class="form-grid">
-      <label>學號 / 員工編號
-        <input type="text" name="student_id" autocomplete="username" inputmode="latin"
-               maxlength="20" placeholder="4–20 碼英數字" required>
+      <label>學號
+        <input type="text" name="student_id" autocomplete="username" inputmode="numeric"
+               maxlength="20" placeholder="例如 13173207" required>
+        <small id="student-id-hint" class="field-hint">學生為 8 碼數字</small>
       </label>
-      <label>姓名 <input type="text" name="name" autocomplete="name" maxlength="100" required></label>
+      <label>姓名
+        <input type="text" name="name" autocomplete="name" maxlength="100"
+               placeholder="中文或英文皆可" required>
+      </label>
       <label>身分
         <select name="role" required>
           <option value="student">學生</option>
@@ -21,13 +25,18 @@
         </select>
       </label>
       <label>密碼
-        <input type="password" name="password" autocomplete="new-password" minlength="12" required>
+        <input type="password" name="password" autocomplete="new-password" minlength="6" required>
+        <small class="field-hint">至少 6 碼,須包含英文大寫字母與數字</small>
       </label>
       <label>確認密碼
-        <input type="password" name="password_confirm" autocomplete="new-password" minlength="12" required>
+        <input type="password" name="password_confirm" autocomplete="new-password" minlength="6" required>
       </label>
       <label>聯絡信箱(選填)
         <input type="email" name="email" autocomplete="email" placeholder="用於聯絡,不用於登入">
+      </label>
+      <label>管理邀請碼(選填)
+        <input type="text" name="invite_code" autocomplete="off" placeholder="由平台管理者提供">
+        <small class="field-hint">填入正確的邀請碼即建立為管理員帳號</small>
       </label>
       <button type="submit">建立帳號</button>
     </form>
@@ -38,9 +47,11 @@
   <aside class="card card-muted">
     <h2>註冊須知</h2>
     <ul class="rules">
-      <li>以學號(教職員為員工編號)作為登入帳號,註冊後不可更改。</li>
-      <li>密碼至少 12 碼,不可與學號或姓名過於相似,也不可為常見密碼。</li>
+      <li>學生以 8 碼學號登入(例如 13173207);教職員以 4–20 碼的員工編號登入。</li>
+      <li>姓名可填中文或英文,不接受數字與符號。</li>
+      <li>密碼至少 6 碼,須包含英文大寫字母與數字,且不可與學號或姓名過於相似。</li>
       <li>身分為自行申報,使用額度由管理者依實際情況調整。</li>
+      <li>管理邀請碼由平台管理者提供;沒有邀請碼請留空,之後也可由管理者指派。</li>
       <li>本服務僅供校內教學、學術與研究用途,請詳閱 <a href="{% url 'home' %}#rules">使用規範</a>。</li>
     </ul>
     <p class="note">已經有帳號了?<a href="{% url 'login' %}">前往登入</a>。</p>

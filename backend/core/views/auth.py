@@ -89,12 +89,21 @@ class RegisterView(APIView):
         except ValidationError as exc:
             raise ApiError(" ".join(exc.messages), code="VALIDATION_ERROR", status_code=400) from exc
 
+        # 填入正確的管理邀請碼即建立為管理員,並跳過審核(README §4.11)
+        invite = (payload.get("invite_code") or "").strip()
+        as_admin = bool(settings.ADMIN_INVITE_CODE) and invite == settings.ADMIN_INVITE_CODE
+        if invite and not as_admin:
+            raise ApiError("管理邀請碼不正確", code="INVITE_CODE_INVALID", status_code=403)
+
         user = User.objects.create_user(
             student_id=payload["student_id"], password=payload["password"],
             name=payload["name"], role=payload["role"], email=payload.get("email", ""),
-            is_active=not settings.REGISTRATION_REQUIRE_APPROVAL,
+            is_active=as_admin or not settings.REGISTRATION_REQUIRE_APPROVAL,
+            is_staff=as_admin, is_superuser=as_admin,
         )
-        services.record("auth", f"{user.student_id} 註冊帳號", user=user)
+        services.record(
+            "auth", f"{user.student_id} 註冊{'管理員' if as_admin else ''}帳號", user=user,
+        )
 
         if not user.is_active:
             return Response(

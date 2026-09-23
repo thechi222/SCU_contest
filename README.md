@@ -280,12 +280,13 @@ SCU_contest/
 │       ├── scheduling.py         租約逾時清理、用量彙整
 │       ├── authentication.py     節點 token 驗證
 │       ├── exceptions.py         錯誤格式 §4.4
+│       ├── validators.py         學號、姓名與密碼規則 §4.11
 │       ├── throttles.py          登入次數限制
-│       ├── views/                auth、state、batches、jobs、nodes、usage、rentals、agent、ai
+│       ├── views/                auth、state、batches、jobs、nodes、usage、rentals、manage、agent、ai
 │       ├── ai_assistant.py       AI 助理 §4.7
 │       ├── seed_data.py          示範帳號與展示素材對照 §4.6
 │       ├── admin.py              Django Admin 設定
-│       ├── management/commands/  seed、import_users、run_scheduler、aggregate_usage
+│       ├── management/commands/  seed、import_users、run_scheduler、aggregate_usage、grant_admin
 │       └── migrations/
 ├── agent/                        [Agent] 機台端程式(移植自 codex 分支)
 │   ├── main.py                   CLI:doctor / prepare / pair / run / enable / stop / status
@@ -300,8 +301,8 @@ SCU_contest/
 │   ├── upscale.Dockerfile
 │   └── models.json               模型版本與權重來源
 ├── frontend/                     [前端] 由 Django 直接提供
-│   ├── templates/                base、home、register、login、workbench、nodes、dashboard、rentals、assistant、display
-│   └── static/                   css/style.css、js/(api、auth、register、login、workbench、nodes、dashboard、rentals、display、assistant)
+│   ├── templates/                base、home、register、login、workbench、nodes、dashboard、rentals、manage、assistant、display
+│   └── static/                   css/style.css、js/(api、auth、register、login、workbench、nodes、dashboard、rentals、manage、display、assistant)
 ├── scripts/                      [測試/整合] benchmark、憑證與素材產生
 ├── demo-assets/                  展示素材(離線合成語音與團隊產生的校準圖片)
 ├── docs/                         架構、部署、驗收表、實測紀錄、展示腳本
@@ -313,12 +314,13 @@ SCU_contest/
 | 路徑 | 內容 | 是否需登入 |
 |---|---|---|
 | `/` | 服務說明:服務內容、任務目錄、限制、申請與提供設備流程、使用規範 | 公開 |
-| `/register/` | 註冊帳號(學號、姓名、身分、密碼) | 公開 |
+| `/register/` | 註冊帳號(學號、姓名、身分、密碼;可填管理邀請碼) | 公開 |
 | `/login/` | 登入(學號 + 密碼) | 公開 |
 | `/workbench/` | 工作台:送出批次、查看與取消自己的工作、下載成果 | 需登入 |
 | `/rentals/` | 自由租借:申請時數、查看連線資訊與結束租借(§4.10) | 需登入 |
 | `/dashboard/` | 閒置算力儀表板:各機台狀態、使用率曲線、每日用量與 CSV 匯出(§4.9) | 需登入 |
 | `/nodes/` | 我的設備:取得配對碼、開關分享與租借、查看平台設備狀態 | 需登入 |
+| `/manage/` | 管理台:帳號審核、配額調整與全平台使用情形(§4.12) | 管理員 |
 | `/assistant/` | AI 助理對話框 | 需登入 |
 | `/display/` | 大螢幕:設備即時狀態與佇列統計 | 需登入 |
 | `/admin/` | Django Admin | 管理者 |
@@ -370,6 +372,14 @@ python manage.py import_users accounts.csv --output ~/powershare-credentials.csv
 
 密碼隨機產生,只寫入 `--output` 指定的檔案(檔案已存在時拒絕執行),請存放於 repo 以外的位置。
 使用者也可於 `/register/` 自行註冊;不希望開放時設定 `REGISTRATION_OPEN=0`(§4.11)。
+
+**指派管理員**
+
+```bash
+# 於 .env 設定 ADMIN_INVITE_CODE 後,團隊成員註冊時填入該碼即為管理員
+# 或由既有管理員直接指派(可一次多個,--revoke 為移除)
+cd backend && python manage.py grant_admin 13173207 13173208
+```
 
 啟動後:前端 http://localhost:8000/ ,管理後台 http://localhost:8000/admin/ 。
 
@@ -517,6 +527,7 @@ from django.core.validators import RegexValidator
 from django.db import models
 
 from core.profiles import PROFILES
+from core.validators import validate_person_name
 
 STUDENT_ID_PATTERN = r"^[A-Za-z0-9]{4,20}$"
 validate_student_id = RegexValidator(STUDENT_ID_PATTERN, "學號應為 4–20 碼英數字")
@@ -571,7 +582,7 @@ class User(AbstractUser):
         max_length=20, unique=True, validators=[validate_student_id],
     )
     email = models.EmailField(blank=True, default="")              # 選填的聯絡信箱,不用於登入
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, validators=[validate_person_name])   # 中文或英文
     role = models.CharField(max_length=10, choices=Role.choices)   # 無預設值,建立帳號時須指定
     max_running = models.PositiveSmallIntegerField(default=2)      # 同時執行中的工作上限
     daily_limit = models.PositiveIntegerField(default=100)         # 每日提交檔案數上限
@@ -949,6 +960,8 @@ class Event(models.Model):
 | GET | `/api/rentals` | — | `{rentals, workspaces, limits, nodes_open_to_rental, queue_length}` | 需登入 |
 | POST | `/api/rentals` | `{workspace, minutes, purpose?}` | `201` `Rental` | 需登入 |
 | POST | `/api/rentals/{id}/cancel` | — | `Rental` | 需登入(限本人) |
+| GET | `/api/admin/overview` | — | 見 §4.12 | 管理員 |
+| PATCH | `/api/admin/users/{id}` | `{is_active?, is_admin?, role?, max_running?, daily_limit?}` | `User` | 管理員 |
 | POST | `/api/agent/pair` | `{code, name, gpu_uuid, gpu_name, memory_mb, capabilities, environment}` | `{node_id, token}` | 配對碼 |
 | POST | `/api/agent/heartbeat` | `{attempt_id?, rental_id?, local_enabled, capabilities?, environment?, telemetry?, stage?, progress?}` | `{stop, lease_seconds, sharing, within_schedule}` | 節點 token |
 | POST | `/api/agent/claim` | — | `{assignment}` 或 `{assignment: null}` | 節點 token |
@@ -987,6 +1000,7 @@ raise ApiError("超過每日上限", code="QUOTA_EXCEEDED", status_code=429)
 | `LOGIN_FAILED` | 403 | 學號或密碼不正確 |
 | `ACCOUNT_INACTIVE` | 403 | 帳號已停用或尚未經管理者核可 |
 | `REGISTRATION_CLOSED` | 403 | 目前未開放自行註冊 |
+| `INVITE_CODE_INVALID` | 403 | 管理邀請碼不正確 |
 | `NOT_AUTHENTICATED` | 403 | 未登入,或 Agent 未附 token |
 | `AUTHENTICATION_FAILED` | 403 | 節點 token 無效或已撤銷 |
 | `PERMISSION_DENIED` | 403 | 權限不足(含 CSRF 驗證失敗) |
@@ -1373,6 +1387,7 @@ try {
 | 工作台 `/workbench/` | `workbench.js` | `pollState()` 每 2 秒 `/api/state`;任務選單由 `state.tasks` 產生,`planned` 不可選 |
 | 我的設備 `/nodes/` | `nodes.js` | `pollState()`;`PATCH /api/nodes/{id}` 切換 `sharing` 與 `allow_rental` |
 | 儀表板 `/dashboard/` | `dashboard.js` | 每 5 秒 `/api/usage/summary`;曲線以內嵌 SVG 繪製,不使用外部圖表套件 |
+| 管理台 `/manage/` | `manage.js` | 每 10 秒 `/api/admin/overview`;`PATCH /api/admin/users/{id}` 核可與調整配額 |
 | 自由租借 `/rentals/` | `rentals.js` | 每 5 秒 `/api/rentals`;`POST /api/rentals` 申請、`/cancel` 結束 |
 | 即時看板 `/display/` | `display.js` | `pollState()`,大螢幕用 |
 | 服務說明 `/` | 無 | 公開頁面,純靜態內容 |
@@ -1434,11 +1449,14 @@ try {
 
 | 欄位 | 規則 |
 |---|---|
-| `student_id` | 4–20 碼英數字;輸入時可夾帶空白或 `-`,一律去除並轉大寫後儲存與比對 |
-| `name` | 最長 100 字 |
-| `role` | `student` 或 `staff`,**使用者自行申報**,配額仍由管理者調整 |
-| `password` | 至少 12 碼,另經 Django 內建密碼檢核(相似度、常見密碼、純數字) |
+| `student_id` | 學生為 **8 碼數字**(例:`13173207`);教職員的員工編號放寬為 4–20 碼英數字。輸入時可夾帶空白或 `-`,一律去除並轉大寫後儲存與比對 |
+| `name` | 2–100 字,中文或英文字母(可含空白、`·`、`-`),不接受數字與其他符號 |
+| `role` | `student` 或 `staff`,**使用者自行申報**,決定學號格式,配額仍由管理者調整 |
+| `password` | 至少 6 碼(`PASSWORD_MIN_LENGTH`),**須包含英文大寫字母與數字**,另經 Django 內建檢核(與帳號相似、常見密碼) |
 | `email` | 選填;未填為空字串,填寫時以條件式唯一索引確保不重複 |
+| `invite_code` | 選填的管理邀請碼,正確時建立為管理員(見下) |
+
+規則實作於 `backend/core/validators.py`,行為以 `tests/test_auth.py` 為準。
 
 **兩種帳號來源**
 
@@ -1450,7 +1468,17 @@ try {
 | 設定 | 預設 | 意義 |
 |---|---|---|
 | `REGISTRATION_OPEN` | `1` | 設為 `0` 時關閉自行註冊,只接受管理者建立的帳號 |
-| `REGISTRATION_REQUIRE_APPROVAL` | `0` | 設為 `1` 時註冊的帳號先停用,由管理者於 Admin 的「核可帳號」動作啟用 |
+| `REGISTRATION_REQUIRE_APPROVAL` | `0` | 設為 `1` 時註冊的帳號先停用,由管理者於管理台或 Admin 核可後啟用 |
+| `PASSWORD_MIN_LENGTH` | `6` | 密碼最短長度;大寫與數字為必要條件,不受此設定影響 |
+| `ADMIN_INVITE_CODE` | 空字串 | 設定後,註冊時填入相同的碼即建立為管理員;留空代表關閉此管道 |
+
+**成為管理員的兩種方式**
+
+1. 於 `.env` 設定 `ADMIN_INVITE_CODE`,團隊成員註冊時填入該碼(建立為 `is_staff` 且 `is_superuser`,並略過審核)。
+2. 由既有管理員以 `python manage.py grant_admin <學號>` 指派,或於管理台(§4.12)、Django Admin 調整。
+
+> 邀請碼等同管理權限,請使用長隨機字串、私下傳遞,並在團隊成員都完成註冊後清空該設定。
+> 邀請碼錯誤時回 `INVITE_CODE_INVALID`,不會建立帳號。
 
 * 註冊成功且無須核可時直接建立 session 並回傳 `User`;須核可時回傳 `{"status": "pending"}`,不建立 session。
 * 停用中的帳號登入回 `ACCOUNT_INACTIVE`,與密碼錯誤的 `LOGIN_FAILED` 區分,以免使用者反覆嘗試密碼。
@@ -1459,6 +1487,23 @@ try {
 
 > 本節與 §4.9、§4.10 同為初步版本,尚未納入凍結範圍。
 > 學號與身分目前為自行申報,正式上線前應串接校內帳號系統驗證(§5、§9)。
+
+## 4.12 管理台
+
+管理員(`is_staff`)專用,供承辦團隊查看所有註冊帳號與全平台使用情形,實作於 `core/views/manage.py`,
+行為以 `tests/test_admin.py` 為準。
+
+| 方法 | 路徑 | 內容 |
+|---|---|---|
+| GET | `/api/admin/overview` | `summary`(帳號、設備、工作、租借統計)、`pending_users`、`users`(含每人工作數與設備數)、`jobs`(最近 50 件)、`rentals`、`events`、`usage`、`days` |
+| PATCH | `/api/admin/users/{id}` | `{is_active?, is_admin?, role?, max_running?, daily_limit?}` |
+
+* 非管理員存取一律回 `PERMISSION_DENIED`;`/manage/` 頁面的連結只對管理員顯示。
+* 管理員不能移除自己的管理權限或停用自己的帳號,避免平台沒有任何管理者。
+* 帳號調整會寫入事件紀錄(`kind="admin"`),可於管理台的近期事件查看。
+* 這裡只呈現設備與工作的中繼資料(檔名、狀態、時間),不提供其他使用者的成果檔案下載。
+
+> 本節與 §4.9–§4.11 同為初步版本,尚未納入凍結範圍。
 
 * * *
 # §5 資源安全與隔離設計
@@ -1476,7 +1521,8 @@ try {
 | 自我測試 | 只有通過 CUDA 自我測試、模型版本相符的設備能登錄與接單 | 不會把工作派給沒有能力完成的機器 |
 | 網路方向 | 全部由機台主動 outbound,機台零 inbound port | 不需要在校園網路開放任何連接埠 |
 | 節點驗證 | 每台設備一把 token,只存雜湊,配對碼一次性且 10 分鐘有效,可撤銷 | 無法冒用其他設備的身分接單 |
-| 帳號發放 | 以學號自行註冊,或由管理者批次建立;密碼至少 12 碼並經內建檢核 | 每位使用者的操作可個別追溯 |
+| 帳號發放 | 以學號自行註冊(學生 8 碼數字),或由管理者批次建立;密碼至少 6 碼且須含大寫與數字 | 每位使用者的操作可個別追溯 |
+| 管理權限 | 管理員由邀請碼或既有管理員指派;管理台只呈現中繼資料,不提供他人成果下載 | 管理權限不會因為註冊表單被自行取得 |
 | 註冊控管 | 可關閉自行註冊或改為須管理者核可;註冊依來源位址節流 | 需要時可只接受配發帳號 |
 | 登入保護 | 每學號每分鐘最多 10 次登入嘗試 | 降低密碼遭暴力破解的風險 |
 | 資料範圍 | 使用者只能存取自己的輸入與成果;租借的連線資訊只回傳給租借者本人 | 成果不會被其他使用者看到 |
@@ -1516,6 +1562,7 @@ try {
 | 10 | 互動式租借狀態機(初步完成) | `tests/test_rentals.py` 全數通過;逾時、到期與機主收回均正確結束 | — |
 | 11 | 租借配額與稽核 | 每人時數上限可由管理者依單位調整;租借的開始與結束皆留存事件 | 先以 `settings` 常數固定 |
 | 12 | 註冊與學號登入(初步完成) | `tests/test_auth.py` 全數通過;可切換關閉註冊或須核可 | — |
+| 14 | 管理台 API(初步完成) | `tests/test_admin.py` 全數通過;非管理員一律 403 | — |
 | 13 | 校內帳號整合 | 以學校既有帳號系統驗證身分,取代自行申報 | 維持自行註冊,並由管理者抽查學號 |
 
 ## 6.2 機台 Agent / 容器負責人 — 擁有 `agent/`、`workers/`
@@ -1546,6 +1593,7 @@ try {
 | 8 | 閒置算力儀表板(初步完成) | `/dashboard/` 顯示各機台狀態、使用率曲線與每日用量,可匯出 CSV | — |
 | 9 | 自由租借頁(初步完成) | `/rentals/` 可申請、顯示排隊與連線資訊、結束租借 | — |
 | 11 | 註冊與登入頁(初步完成) | `/register/` 可建立帳號,登入改用學號 | — |
+| 12 | 管理台頁面(初步完成) | `/manage/` 可核可帳號、調整配額並查看全平台使用情形 | — |
 | 10 | 儀表板細節 | 可切換時間範圍、點選單一機台查看細節(`/api/usage/nodes/{id}`) | 維持固定 6 小時範圍 |
 
 ## 6.4 測試 / 整合 / 部署負責人 — 擁有 `tests/`、`docker-compose.yml`、`scripts/`
@@ -1627,6 +1675,7 @@ try {
 | 資料保存 | 使用者上傳內容的保存與清除未定 | 測試期間明訂保存期限,結束後清除 |
 | 測試數據混雜 | 受測者共用帳號會混淆數據 | 每人個人帳號(§6.5) |
 | 冒用學號註冊 | 學號為自行申報,可能被冒用或亂填 | 需要時關閉自行註冊或改為須核可;正式上線串接校內帳號(§4.11、§5) |
+| 管理邀請碼外流 | 取得邀請碼即可註冊為管理員 | 使用長隨機字串、私下傳遞,團隊註冊完成後清空該設定(§4.11) |
 | Migration 衝突 | 多人同時改模型 | 僅後端負責人產生 migration(§0 規範 6) |
 | 證據被誤用 | 模擬測試被當成實機成果 | 驗收表與 §0 規範 8 |
 | 租借容器濫用 | 容器內可自行操作,可能被用於非授權用途 | 限時、機主自行選擇是否開放、保留操作紀錄;隔離參數未定前不對外開放(§5) |

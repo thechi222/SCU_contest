@@ -1,6 +1,6 @@
 from django.urls import path
 
-from core.views import agent, ai, auth, batches, jobs, nodes, rentals, state, usage
+from core.views import agent, ai, auth, batches, jobs, manage, nodes, rentals, state, usage
 
 urlpatterns = [
     path("health", state.HealthView.as_view()),
@@ -24,6 +24,8 @@ urlpatterns = [
     path("usage/nodes/<uuid:node_id>", usage.UsageNodeView.as_view()),
     path("rentals", rentals.RentalListCreateView.as_view()),
     path("rentals/<uuid:rental_id>/cancel", rentals.RentalCancelView.as_view()),
+    path("admin/overview", manage.AdminOverviewView.as_view()),
+    path("admin/users/<int:user_id>", manage.AdminUserDetailView.as_view()),
     path("agent/pair", agent.PairView.as_view()),
     path("agent/heartbeat", agent.HeartbeatView.as_view()),
     path("agent/claim", agent.ClaimView.as_view()),

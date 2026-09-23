@@ -3,8 +3,9 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from core.models import (
-    Artifact, Batch, Event, Job, Node, Rental, User, normalize_student_id, validate_student_id,
+    Artifact, Batch, Event, Job, Node, Rental, User, normalize_student_id,
 )
+from core.validators import validate_account_id, validate_person_name
 from core.profiles import AVAILABLE_KINDS, PROFILES, TASKS, WORKSPACES
 
 KIND_CHOICES = list(PROFILES)        # 已定義的任務類型
@@ -53,14 +54,26 @@ class RegisterSerializer(serializers.Serializer):
     student_id = StudentIdField(max_length=30)
     name = serializers.CharField(max_length=100)
     role = serializers.ChoiceField(choices=User.Role.choices)
-    password = serializers.CharField(write_only=True, min_length=12)
+    password = serializers.CharField(write_only=True)
     email = serializers.EmailField(required=False, allow_blank=True, default="")
+    invite_code = serializers.CharField(required=False, allow_blank=True, default="", write_only=True)
 
     def validate_student_id(self, value):
-        validate_student_id(value)                                  # 4–20 碼英數字
         if User.objects.filter(student_id=value).exists():
             raise serializers.ValidationError("這個學號已經註冊過")
         return value
+
+    def validate_name(self, value):
+        value = value.strip()
+        if len(value) < 2:
+            raise serializers.ValidationError("請填寫完整姓名")
+        validate_person_name(value)                                 # 中文或英文皆可
+        return value
+
+    def validate(self, attrs):
+        # 學生為 8 碼數字,教職員的員工編號放寬為 4–20 碼英數字
+        validate_account_id(attrs["student_id"], attrs["role"])
+        return attrs
 
     def validate_email(self, value):
         value = value.strip().lower()
@@ -71,7 +84,7 @@ class RegisterSerializer(serializers.Serializer):
 
 class PasswordChangeSerializer(serializers.Serializer):
     current_password = serializers.CharField(write_only=True)
-    new_password = serializers.CharField(write_only=True, min_length=12)
+    new_password = serializers.CharField(write_only=True)   # 長度與複雜度由密碼檢核決定
 
 
 class NodeSerializer(serializers.ModelSerializer):
@@ -290,3 +303,37 @@ class RentalReadySerializer(serializers.Serializer):
 
 class RentalEndedSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    """管理台的帳號列表(README §4.12)。統計欄位由 view 以 annotate 帶入。"""
+
+    is_admin = serializers.BooleanField(source="is_staff", read_only=True)
+    jobs_total = serializers.SerializerMethodField()
+    jobs_today = serializers.SerializerMethodField()
+    nodes_total = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "student_id", "name", "role", "email", "is_active", "is_admin",
+            "max_running", "daily_limit", "date_joined", "last_login",
+            "jobs_total", "jobs_today", "nodes_total",
+        ]
+
+    def get_jobs_total(self, user) -> int:
+        return getattr(user, "jobs_total", 0)
+
+    def get_jobs_today(self, user) -> int:
+        return getattr(user, "jobs_today", 0)
+
+    def get_nodes_total(self, user) -> int:
+        return getattr(user, "nodes_total", 0)
+
+
+class AdminUserUpdateSerializer(serializers.Serializer):
+    is_active = serializers.BooleanField(required=False)
+    role = serializers.ChoiceField(choices=User.Role.choices, required=False)
+    max_running = serializers.IntegerField(min_value=1, max_value=32, required=False)
+    daily_limit = serializers.IntegerField(min_value=1, max_value=10000, required=False)
+    is_admin = serializers.BooleanField(required=False)

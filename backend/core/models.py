@@ -6,6 +6,7 @@ from django.core.validators import RegexValidator
 from django.db import models
 
 from core.profiles import PROFILES
+from core.validators import validate_person_name
 
 STUDENT_ID_PATTERN = r"^[A-Za-z0-9]{4,20}$"
 validate_student_id = RegexValidator(STUDENT_ID_PATTERN, "學號應為 4–20 碼英數字")
@@ -60,7 +61,7 @@ class User(AbstractUser):
         max_length=20, unique=True, validators=[validate_student_id],
     )
     email = models.EmailField(blank=True, default="")              # 選填的聯絡信箱,不用於登入
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, validators=[validate_person_name])   # 中文或英文
     role = models.CharField(max_length=10, choices=Role.choices)   # 無預設值,建立帳號時須指定
     max_running = models.PositiveSmallIntegerField(default=2)      # 同時執行中的工作上限
     daily_limit = models.PositiveIntegerField(default=100)         # 每日提交檔案數上限

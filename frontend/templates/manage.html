@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}管理台{% endblock %}
+{% block breadcrumb_current %}管理台{% endblock %}
+
+{% block content %}
+<h1>管理台</h1>
+<p class="note">
+  僅限管理員使用。可查看所有註冊帳號與使用情形,核可待審核的帳號,並調整配額。
+  設備與用量的詳細數據見 <a href="{% url 'dashboard' %}">閒置算力儀表板</a>。
+</p>
+<p id="manage-error" class="error" role="alert"></p>
+
+<section>
+  <h2>平台概況</h2>
+  <div id="manage-summary" class="metric-grid"></div>
+</section>
+
+<section>
+  <h2>待審核帳號</h2>
+  <p class="note">只有在 <code>REGISTRATION_REQUIRE_APPROVAL=1</code> 時才會有待審核的帳號。</p>
+  <div id="pending-users"></div>
+</section>
+
+<section>
+  <h2>所有帳號</h2>
+  <div class="table-scroll">
+    <table class="usage-table">
+      <caption>註冊帳號與使用情形</caption>
+      <thead>
+        <tr>
+          <th scope="col">學號</th>
+          <th scope="col">姓名</th>
+          <th scope="col">身分</th>
+          <th scope="col">狀態</th>
+          <th scope="col">今日 / 累計工作</th>
+          <th scope="col">設備</th>
+          <th scope="col">同時 / 每日上限</th>
+          <th scope="col">註冊時間</th>
+          <th scope="col">操作</th>
+        </tr>
+      </thead>
+      <tbody id="manage-users"></tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>最近的工作</h2>
+  <div class="table-scroll">
+    <table class="usage-table">
+      <caption>全平台最近 50 件工作</caption>
+      <thead>
+        <tr>
+          <th scope="col">送出時間</th>
+          <th scope="col">使用者</th>
+          <th scope="col">檔案</th>
+          <th scope="col">任務</th>
+          <th scope="col">狀態</th>
+          <th scope="col">次數</th>
+        </tr>
+      </thead>
+      <tbody id="manage-jobs"></tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>互動式租借</h2>
+  <div class="table-scroll">
+    <table class="usage-table">
+      <caption>最近 20 段租借</caption>
+      <thead>
+        <tr>
+          <th scope="col">申請時間</th>
+          <th scope="col">環境</th>
+          <th scope="col">時數</th>
+          <th scope="col">設備</th>
+          <th scope="col">狀態</th>
+        </tr>
+      </thead>
+      <tbody id="manage-rentals"></tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>近期事件</h2>
+  <div id="manage-events"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/manage.js' %}"></script>
+{% endblock %}

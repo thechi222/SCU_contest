@@ -11,9 +11,16 @@ function showLoginLink() {
   container.replaceChildren(link);
 }
 
+function showAdminLinks(isAdmin) {
+  for (const link of document.querySelectorAll("[data-admin-only]")) {
+    link.hidden = !isAdmin;
+  }
+}
+
 async function renderCurrentUser() {
   try {
     const user = await api("/api/auth/me");
+    showAdminLinks(user.is_admin);
     container.replaceChildren(element("span", "user-name", `${user.name}`));
 
     const logout = element("button", "link-button", "登出");

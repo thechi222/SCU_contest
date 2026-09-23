@@ -38,6 +38,7 @@
         <a href="{% url 'nodes' %}"{% if page == 'nodes' %} class="current" aria-current="page"{% endif %}>我的設備</a>
         <a href="{% url 'assistant' %}"{% if page == 'assistant' %} class="current" aria-current="page"{% endif %}>AI 助理</a>
         <a href="{% url 'display' %}"{% if page == 'display' %} class="current" aria-current="page"{% endif %}>即時看板</a>
+        <a href="{% url 'manage' %}" data-admin-only hidden{% if page == 'manage' %} class="current" aria-current="page"{% endif %}>管理台</a>
       </nav>
 
       <div id="current-user" class="current-user"></div>

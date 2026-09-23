@@ -20,6 +20,7 @@ urlpatterns = [
     path("workbench/", page("workbench.html", "workbench"), name="workbench"),
     path("nodes/", page("nodes.html", "nodes"), name="nodes"),
     path("dashboard/", page("dashboard.html", "dashboard"), name="dashboard"),
+    path("manage/", page("manage.html", "manage"), name="manage"),
     path("rentals/", page("rentals.html", "rentals"), name="rentals"),
     path("assistant/", page("assistant.html", "assistant"), name="assistant"),
     path("display/", page("display.html", "display"), name="display"),

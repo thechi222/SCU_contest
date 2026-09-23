@@ -36,6 +36,8 @@ CONTRACT_ROUTES = [
     ("GET", "/api/rentals"),
     ("POST", "/api/rentals"),
     ("POST", f"/api/rentals/{SAMPLE_UUID}/cancel"),
+    ("GET", "/api/admin/overview"),
+    ("PATCH", "/api/admin/users/1"),
     ("POST", "/api/agent/pair"),
     ("POST", "/api/agent/heartbeat"),
     ("POST", "/api/agent/claim"),

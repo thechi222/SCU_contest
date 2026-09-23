@@ -99,11 +99,20 @@ DATABASES = {
 
 AUTH_USER_MODEL = "core.User"
 
+PASSWORD_MIN_LENGTH = env_int("PASSWORD_MIN_LENGTH", 6)
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": PASSWORD_MIN_LENGTH},
+    },
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    # 至少一個英文大寫字母與一個數字(README §4.11)
+    {
+        "NAME": "core.validators.PasswordComplexityValidator",
+        "OPTIONS": {"min_length": PASSWORD_MIN_LENGTH},
+    },
 ]
 
 LANGUAGE_CODE = "zh-hant"
@@ -128,8 +137,10 @@ MAX_IMAGE_SIZE = (2048, 2048)   # 放大任務的原圖尺寸上限
 
 # 帳號註冊(README §4.11)
 REGISTRATION_OPEN = os.environ.get("REGISTRATION_OPEN", "1") == "1"
-# 設為 1 時,註冊的帳號先停用,待管理者於 Django Admin 核可後才能登入
+# 設為 1 時,註冊的帳號先停用,待管理者於管理台或 Django Admin 核可後才能登入
 REGISTRATION_REQUIRE_APPROVAL = os.environ.get("REGISTRATION_REQUIRE_APPROVAL", "0") == "1"
+# 註冊時填入這組邀請碼即建立為管理員;留空(預設)代表關閉此管道
+ADMIN_INVITE_CODE = os.environ.get("ADMIN_INVITE_CODE", "").strip()
 
 # 用量取樣與儀表板(README §4.9)
 USAGE_SAMPLE_SECONDS = env_int("USAGE_SAMPLE_SECONDS", 60)    # 每台節點最多每 60 秒留存一筆取樣
