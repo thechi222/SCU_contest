@@ -1,7 +1,9 @@
 __pycache__/
 *.pyc
+# 虛擬環境。自建環境請命名為 .venv/,其他名稱須另行列出
 .venv/
 venv/
+backend/black/
 .env
 *.db
 *.sqlite3
