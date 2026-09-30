@@ -46,6 +46,11 @@ def request_rental(user, workspace: str, minutes: int, purpose: str = "") -> Ren
     profile = WORKSPACES.get(workspace)
     if profile is None:
         raise ApiError("未知的工作環境", code="VALIDATION_ERROR", status_code=400)
+    if profile["status"] != "available":
+        raise ApiError(
+            f"{profile['label']} 的映像尚未建置完成,暫不開放",
+            code="ENVIRONMENT_NOT_READY", status_code=400,
+        )
     check_quota(user, minutes)
 
     rental = Rental.objects.create(
@@ -60,6 +65,20 @@ def node_accepts_rental(node: Node) -> bool:
     return bool(node.allow_rental and services.node_accepts_work(node))
 
 
+def environment_ready(node: Node, workspace: str) -> bool:
+    """機台是否已備妥該環境。對應任務類型者以自我測試結果判斷,通用環境一律視為需建置。"""
+    kind = WORKSPACES.get(workspace, {}).get("kind")
+    if not kind:
+        return False
+    capability = (node.capabilities or {}).get(kind) or {}
+    return bool(capability.get("cuda_verified"))
+
+
+def node_can_run(node: Node, workspace: str) -> bool:
+    """顯示記憶體足夠就可以接;環境沒建好的話由 Agent 於領取後自動建置。"""
+    return node.memory_mb >= WORKSPACES.get(workspace, {}).get("min_vram_mb", 0)
+
+
 @transaction.atomic
 def claim_rental(node: Node) -> Rental | None:
     """為節點取出一段租借。節點未開放租借、已有工作或租借時回傳 None。"""
@@ -72,25 +91,31 @@ def claim_rental(node: Node) -> Rental | None:
         return None
 
     now = timezone.now()
-    candidates = (
-        Rental.objects.select_for_update(skip_locked=True)
+    candidates = [
+        item
+        for item in Rental.objects.select_for_update(skip_locked=True)
         .filter(status=Rental.Status.QUEUED)
         .select_related("user")
         .order_by("created_at")
-    )
-    rental = next(
-        (item for item in candidates
-         if node.memory_mb >= WORKSPACES.get(item.workspace, {}).get("min_vram_mb", 0)),
-        None,
-    )
-    if rental is None:
+        if node_can_run(node, item.workspace)
+    ]
+    if not candidates:
         return None
+    # 環境已備妥的工作階段優先,使用者不必等重新建置
+    rental = next(
+        (item for item in candidates if environment_ready(node, item.workspace)), candidates[0],
+    )
 
     rental.node = node
     rental.status = Rental.Status.STARTING
+    rental.prepared = environment_ready(node, rental.workspace)
+    rental.stage = "啟動容器" if rental.prepared else "建置環境"
+    rental.progress = None
     rental.started_at = now          # 節點領取並開始啟動的時間
     rental.lease_until = now + timedelta(seconds=settings.LEASE_SECONDS)
-    rental.save(update_fields=["node", "status", "started_at", "lease_until"])
+    rental.save(update_fields=[
+        "node", "status", "prepared", "stage", "progress", "started_at", "lease_until",
+    ])
     services.record("rental", f"租借派給 {node.name}", user=rental.user, node=node)
     return rental
 
@@ -108,20 +133,23 @@ def mark_ready(node: Node, rental_id, connect_url: str, connect_token: str, conn
 
     now = timezone.now()
     rental.status = Rental.Status.ACTIVE
+    rental.stage = "可以連線"
+    rental.progress = 1.0
     rental.connect_url = connect_url[:300]
     rental.connect_token = connect_token[:120]
     rental.connection = connection
     rental.expires_at = now + timedelta(minutes=rental.minutes)
     rental.lease_until = now + timedelta(seconds=settings.LEASE_SECONDS)
     rental.save(update_fields=[
-        "status", "connect_url", "connect_token", "connection", "expires_at", "lease_until",
+        "status", "stage", "progress", "connect_url", "connect_token", "connection",
+        "expires_at", "lease_until",
     ])
     services.record("rental", "容器已啟動,可以連線", user=rental.user, node=node)
     return rental
 
 
 @transaction.atomic
-def renew_lease(node: Node, rental_id) -> bool:
+def renew_lease(node: Node, rental_id, stage: str | None = None, progress: float | None = None) -> bool:
     """續約成功回傳 True;租借已結束、時數用盡或機主收回時回傳 False,Agent 應立即停止容器。"""
     rental = (
         Rental.objects.select_for_update()
@@ -140,20 +168,30 @@ def renew_lease(node: Node, rental_id) -> bool:
         return False
 
     rental.lease_until = now + timedelta(seconds=settings.LEASE_SECONDS)
-    rental.save(update_fields=["lease_until"])
+    updates = ["lease_until"]
+    if stage and rental.stage != stage:
+        rental.stage = stage
+        updates.append("stage")
+    if progress is not None:
+        rental.progress = progress
+        updates.append("progress")
+    rental.save(update_fields=updates)
     return True
 
 
 def finish(rental: Rental, status: str, reason: str, *, now=None) -> Rental:
     """結束一段租借並清除連線資訊(token 不再保留)。"""
     rental.status = status
+    rental.stage = "已結束"
+    rental.progress = None
     rental.end_reason = reason[:200]
     rental.ended_at = now or timezone.now()
     rental.connect_token = ""
     rental.connect_url = ""
     rental.lease_until = None
     rental.save(update_fields=[
-        "status", "end_reason", "ended_at", "connect_token", "connect_url", "lease_until",
+        "status", "stage", "progress", "end_reason", "ended_at",
+        "connect_token", "connect_url", "lease_until",
     ])
     services.record("rental", f"租借結束:{reason}", user=rental.user, node=rental.node)
     return rental
@@ -217,7 +255,11 @@ def expire_rentals() -> int:
                 fresh.node = None
                 fresh.started_at = None
                 fresh.lease_until = None
-                fresh.save(update_fields=["status", "node", "started_at", "lease_until"])
+                fresh.stage = "等待可用設備"
+                fresh.progress = None
+                fresh.save(update_fields=[
+                    "status", "node", "started_at", "lease_until", "stage", "progress",
+                ])
                 services.record("rental", "設備未能啟動容器,重新排隊", user=fresh.user)
                 handled += 1
             elif lost:

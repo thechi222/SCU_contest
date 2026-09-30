@@ -171,10 +171,11 @@ def test_heartbeat_stores_a_usage_sample(client, paired):
 def test_agent_rental_channel_end_to_end(client, paired, user):
     """租借的機台通道:領取 → 回報可連線 → 心跳續約 → 回報容器停止(§4.10)。"""
     Node.objects.update(sharing=True, local_enabled=True, allow_rental=True)
-    rentals.request_rental(user, "pytorch", 30, "測試")
+    rentals.request_rental(user, "asr", 30, "測試")
 
     assignment = client.post("/api/agent/rentals/claim", headers=bearer(paired)).json()["rental"]
-    assert assignment["image"].startswith("powershare/workspace-pytorch")
+    assert assignment["image"].startswith("powershare/workspace-asr")
+    assert assignment["kind"] == "asr" and assignment["prepare"] is False   # 已通過自我測試
 
     ready = client.post(
         f"/api/agent/rentals/{assignment['rental_id']}/ready",
@@ -200,6 +201,6 @@ def test_agent_rental_channel_end_to_end(client, paired, user):
 
 def test_agent_claim_returns_null_when_node_does_not_accept_rentals(client, paired, user):
     Node.objects.update(sharing=True, local_enabled=True, allow_rental=False)
-    rentals.request_rental(user, "pytorch", 30, "測試")
+    rentals.request_rental(user, "asr", 30, "測試")
 
     assert client.post("/api/agent/rentals/claim", headers=bearer(paired)).json()["rental"] is None

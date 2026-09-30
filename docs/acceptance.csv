@@ -28,3 +28,6 @@ AI 助理,tests 待補,未實作,,backend/core/ai_assistant.py 為介面定義
 校內帳號系統整合,串接學校帳號登入,未實作,,目前學號與身分為自行申報
 學號與姓名格式、密碼複雜度,tests/test_auth.py,已驗證,pytest 通過,學生 8 碼數字；密碼至少 6 碼含大寫與數字
 管理台權限與帳號管理,tests/test_admin.py,已驗證,pytest 通過,含邀請碼與 grant_admin 指令
+工作環境的自動建置流程（平台端）,tests/test_rentals.py,已驗證,pytest 通過,含環境備妥優先派工與進度回報
+互動式環境映像（workspace-asr / workspace-upscale）,docker build 與實機啟動,未驗證,,Dockerfile 已定義，尚未建置
+環境內以 JupyterLab 操作,實機連線測試,未驗證,,需先決定對外通道方案

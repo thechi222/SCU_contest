@@ -6,9 +6,45 @@
 
 {% block content %}
 <h1>工作台</h1>
+<p class="lead-text">
+  選一個任務環境,平台會在閒置設備上把映像、模型與 GPU 自我測試都準備好,
+  接著給你連線資訊,由你自己進容器執行。不需要在自己的電腦安裝任何環境。
+</p>
 
 <section class="card">
-  <h2>送出工作</h2>
+  <h2>建立工作環境</h2>
+  <form id="session-form" class="form-grid">
+    <label>任務環境
+      <select name="workspace" id="session-workspace" required></select>
+    </label>
+    <label>使用時數(分鐘)
+      <input type="number" name="minutes" id="session-minutes" min="10" step="10" value="60" required>
+    </label>
+    <label>用途(選填)
+      <input type="text" name="purpose" maxlength="200" placeholder="例如:課堂錄音轉逐字稿">
+    </label>
+    <button type="submit">建立環境</button>
+  </form>
+  <p id="session-note" class="note"></p>
+  <p id="session-limits" class="note"></p>
+  <p id="session-error" class="error" role="alert"></p>
+</section>
+
+<section>
+  <h2>目前的工作環境</h2>
+  <div id="session-current"></div>
+  <p class="note">
+    環境會在時數到期或你按下結束後回收,容器內的資料一併清除,請自行下載需要保留的檔案。
+    通用開發環境與完整紀錄見 <a href="{% url 'rentals' %}">自由租借</a>。
+  </p>
+</section>
+
+<section class="card card-muted">
+  <h2>另一種方式:交給平台代跑</h2>
+  <p>
+    不想自己操作時,可以直接上傳檔案,由平台用固定流程跑完後把成果給你,過程中不必連線,
+    適合一次處理大量檔案。
+  </p>
   <form id="submit-form" class="form-grid">
     <label>任務類型
       <select name="kind" id="kind-select" required></select>
@@ -20,15 +56,6 @@
   <p id="kind-note" class="note"></p>
   <p id="submit-limits" class="note"></p>
   <p id="submit-error" class="error" role="alert"></p>
-</section>
-
-<section class="card card-muted">
-  <h2>其他使用方式</h2>
-  <p>
-    需要自己寫程式、調參數或跑實驗,而不是上述固定任務時,可改用
-    <a href="{% url 'rentals' %}">自由租借 GPU</a>:在限定時間內進入容器自行操作。
-    想先看看目前有哪些設備閒置,可查看 <a href="{% url 'dashboard' %}">閒置算力儀表板</a>。
-  </p>
 </section>
 
 <section>

@@ -3,8 +3,9 @@
 > 東吳大學黑客松競賽參賽專案
 
 校內的 GPU 在課餘時間大多閒置,學生要跑語音轉逐字稿、算圖或訓練模型卻沒有設備。
-PowerShare 讓機主把自己的 GPU 掛上平台、隨時可以收回,並提供兩種使用方式:
-上傳檔案交由閒置設備執行固定任務,或在限定時間內租借一台設備自行操作。
+PowerShare 讓機主把自己的 GPU 掛上平台、隨時可以收回。
+使用者選好任務環境後,平台會在閒置設備上自動備妥映像、模型與 GPU 自我測試,
+再把連線資訊交給使用者,由使用者進容器自行執行;不想自己操作時也可以上傳檔案交給平台代跑。
 平台同時記錄各機台的使用狀態與用量,於儀表板呈現目前可用的算力。
 
 本文件為團隊開發手冊,定義開發規範、介面契約、分工範圍與驗收標準。
@@ -77,8 +78,12 @@ PowerShare 讓機主把自己的 GPU 掛上平台、隨時可以收回,並提供
 
 ## 1.2 任務目錄與兩種使用方式
 
-**使用方式一:固定任務。** 使用者上傳檔案,平台派給閒置設備執行預先定義好的流程。
-任務類型、模型版本與成果檔名固定於 `backend/core/profiles.py`,使用者不能指定命令、映像、模型或任意參數。
+**使用方式一(預設):任務環境。** 使用者選擇任務環境與時數,平台把它交給閒置設備,
+由設備自動建置環境(拉映像、下載模型、CUDA 自我測試)後回報連線資訊,使用者進容器自行執行,
+可自行調整參數與流程。環境內容固定於 `backend/core/profiles.py` 的 `WORKSPACES`,流程見 §4.10。
+
+**使用方式二:交給平台代跑。** 不想自己操作時上傳檔案,平台派給閒置設備執行預先定義好的流程,
+完成後取回成果。任務類型、模型版本與成果檔名固定於 `TASKS`,使用者不能指定命令、映像、模型或任意參數。
 
 | 任務類型 | 輸入 | 成果 | 模型 / 工具 | 狀態 |
 |---|---|---|---|---|
@@ -93,25 +98,33 @@ PowerShare 讓機主把自己的 GPU 掛上平台、隨時可以收回,並提供
 `planned`(規劃中)代表介面、成果檔名與資源需求已定義並公告於目錄,容器尚未建置,
 送出時由 `BatchCreateSerializer.validate_kind` 擋下。新增任務的步驟見 §6.2。
 
-**使用方式二:互動式租借。** 使用者申請一段時間,由開放租借的設備啟動固定映像的容器,
-自行進入操作,到期自動回收。與固定任務的差異見 §4.10。
+**使用方式三:通用環境租借。** 需要完全自訂的開發環境時,申請 PyTorch、資料科學或 Blender 等
+通用映像的容器,用法與任務環境相同,只是映像不對應特定任務。三種方式的差異見 §4.10。
+
+| | 任務環境(工作台) | 平台代跑(工作台) | 通用環境(自由租借) |
+|---|---|---|---|
+| 使用者做什麼 | 選環境 → 進容器自己跑 | 上傳檔案 → 等成果 | 選映像 → 進容器自己跑 |
+| 環境準備 | 平台自動建置 | 平台自動建置 | 平台自動建置 |
+| 可調整的範圍 | 環境內任意參數與流程 | 不可調整 | 環境內任意 |
+| 結束條件 | 時數到期或自行結束 | 工作完成 | 時數到期或自行結束 |
 
 ## 1.3 運作方式
 
 1. **使用者註冊** — 校內師生以學號(教職員為員工編號)自行註冊,或由管理者批次建立帳號(§4.11)。
 2. **機主掛上設備** — 機台執行 `agent prepare` 下載模型並實跑 CUDA 自我測試,通過後以一次性配對碼登錄平台。
-3. **使用者送出工作** — 上傳一批檔案,每個檔案成為一件可獨立排隊、重試的工作。
-4. **平台派工** — 依公平順序把工作派給閒置設備,給 20 秒租約;Agent 每 5 秒續約。
-5. **機主隨時可收回** — 關閉分享或本機停止後,容器立即停止,未完成的檔案重新排隊。
-6. **取回成果** — 使用者下載單一成果或整批 ZIP;成果只有本人看得到。
-7. **另一條路徑:互動式租借** — 使用者申請時數,平台派給開放租借的設備啟動容器並轉交連線資訊,到期或機主收回時停止。
+3. **使用者建立工作環境** — 於工作台選擇任務環境與時數,平台交給閒置設備。
+4. **設備自動建置環境** — 拉映像、下載模型、CUDA 自我測試;進度即時回報到頁面上。
+5. **使用者進容器執行** — 環境備妥後取得連線位址與權杖,以 JupyterLab 或終端機操作;時數自此起算。
+6. **到期或自行結束** — 容器與其中的資料一併清除;機主收回設備時亦立即停止。
+7. **另一條路徑:交給平台代跑** — 上傳一批檔案,每個檔案成為一件可獨立排隊、重試的工作,依公平順序派給閒置設備(20 秒租約、5 秒心跳),完成後下載成果或整批 ZIP。
 8. **用量留存** — 每次心跳依取樣間隔留存一筆機台狀態,並彙整為每日用量,於儀表板呈現與匯出。
 
 ## 1.4 範圍界定
 
 **MVP 包含**
 
-* 固定任務:語音轉逐字稿與字幕、圖片 2 倍放大(其餘任務類型先登記於目錄,見 §1.2)
+* 任務環境:語音辨識、影像放大(映像定義於 `workers/workspace-*.Dockerfile`,其餘環境先登記於目錄)
+* 交給平台代跑的固定任務:語音轉逐字稿與字幕、圖片 2 倍放大
 * 一次性配對碼登錄 GPU、機主開關與每日開放時段
 * 公平派工、租約、逾時重排與重試上限
 * 上傳限制、每人同時執行上限與每日額度
@@ -123,7 +136,8 @@ PowerShare 讓機主把自己的 GPU 掛上平台、隨時可以收回,並提供
 
 **初步版本,尚未完成**
 
-* 規劃中任務(`render`、`animate`、`dataset`、`train`)的容器與模型固定作業
+* 規劃中任務與環境(`render`、`animate`、`dataset`、`train`)的映像與模型固定作業
+* 任務環境映像尚未於實機建置與實測(見 [驗收表](docs/acceptance.csv))
 * 互動式租借的機台端:容器啟動與對外連線通道的方式待確認(§4.10)
 * 租借容器的資料保存與清除機制
 
@@ -295,10 +309,13 @@ SCU_contest/
 │   ├── runtime.py                容器啟動、隔離參數與 watchdog
 │   ├── profiles.py               與後端一致的任務類型
 │   └── requirements.txt
-├── workers/                      [Agent] 固定任務容器
-│   ├── worker.py                 ASR 與放大的執行程式
-│   ├── asr.Dockerfile
-│   ├── upscale.Dockerfile
+├── workers/                      [Agent] 任務容器與互動式環境
+│   ├── worker.py                 代跑流程的執行程式
+│   ├── asr.Dockerfile            代跑用
+│   ├── upscale.Dockerfile        代跑用
+│   ├── workspace-asr.Dockerfile      互動式環境(JupyterLab)
+│   ├── workspace-upscale.Dockerfile  互動式環境(JupyterLab)
+│   ├── notebooks/                環境內的快速開始範例
 │   └── models.json               模型版本與權重來源
 ├── frontend/                     [前端] 由 Django 直接提供
 │   ├── templates/                base、home、register、login、workbench、nodes、dashboard、rentals、manage、assistant、display
@@ -316,8 +333,8 @@ SCU_contest/
 | `/` | 服務說明:服務內容、任務目錄、限制、申請與提供設備流程、使用規範 | 公開 |
 | `/register/` | 註冊帳號(學號、姓名、身分、密碼;可填管理邀請碼) | 公開 |
 | `/login/` | 登入(學號 + 密碼) | 公開 |
-| `/workbench/` | 工作台:送出批次、查看與取消自己的工作、下載成果 | 需登入 |
-| `/rentals/` | 自由租借:申請時數、查看連線資訊與結束租借(§4.10) | 需登入 |
+| `/workbench/` | 工作台:建立任務環境並進容器操作,或上傳檔案交給平台代跑 | 需登入 |
+| `/rentals/` | 自由租借:申請通用開發環境、查看連線資訊與完整紀錄(§4.10) | 需登入 |
 | `/dashboard/` | 閒置算力儀表板:各機台狀態、使用率曲線、每日用量與 CSV 匯出(§4.9) | 需登入 |
 | `/nodes/` | 我的設備:取得配對碼、開關分享與租借、查看平台設備狀態 | 需登入 |
 | `/manage/` | 管理台:帳號審核、配額調整與全平台使用情形(§4.12) | 管理員 |
@@ -481,31 +498,102 @@ AVAILABLE_KINDS = [kind for kind, task in TASKS.items() if task["status"] == "av
 
 
 WORKSPACES = {
-    "pytorch": {
-        "label": "PyTorch 訓練環境",
-        "image": "powershare/workspace-pytorch:2.4-cu124",
-        "status": "planned",
-        "entry": "jupyter",
-        "min_vram_mb": 8192,
-        "note": "PyTorch 2.4、CUDA 12.4 與常用套件,以 JupyterLab 進入。",
-    },
-    "datasci": {
-        "label": "資料科學環境",
-        "image": "powershare/workspace-datasci:1.0",
-        "status": "planned",
+    # 任務環境:與 TASKS 的任務類型一一對應,映像內已備妥該任務的工具與模型,
+    # 使用者進去之後自行執行,不必自己安裝環境(README §4.10)。
+    "asr": {
+        "label": "語音辨識環境",
+        "image": "powershare/workspace-asr:whisper-small-v1",
+        "status": "available",
         "entry": "jupyter",
         "min_vram_mb": 4096,
-        "note": "pandas、scikit-learn、RAPIDS,以 JupyterLab 進入。",
+        "kind": "asr",
+        "includes": ["faster-whisper", "whisper-small 權重", "ffmpeg"],
+        "note": "已放好 whisper-small 權重與 ffmpeg,可直接轉檔與調整辨識參數。",
     },
-    "blender": {
-        "label": "Blender 算圖環境",
+    "upscale": {
+        "label": "影像放大環境",
+        "image": "powershare/workspace-upscale:realesrgan-x2-v1",
+        "status": "available",
+        "entry": "jupyter",
+        "min_vram_mb": 4096,
+        "kind": "upscale",
+        "includes": ["Real-ESRGAN", "RealESRGAN_x2plus 權重", "Pillow"],
+        "note": "已放好 Real-ESRGAN 權重,可自行選倍率與批次處理方式。",
+    },
+    "render": {
+        "label": "3D 算圖環境",
         "image": "powershare/workspace-blender:4.2",
         "status": "planned",
         "entry": "shell",
         "min_vram_mb": 8192,
+        "kind": "render",
+        "includes": ["Blender 4.2", "Cycles GPU"],
+        "note": "Blender 命令列環境,可自行指定場景、取樣數與輸出格式。",
+    },
+    "animate": {
+        "label": "動畫算圖環境",
+        "image": "powershare/workspace-blender:4.2",
+        "status": "planned",
+        "entry": "shell",
+        "min_vram_mb": 8192,
+        "kind": "animate",
+        "includes": ["Blender 4.2", "Cycles GPU", "ffmpeg"],
+        "note": "與 3D 算圖同一個映像,另附影片合成工具。",
+    },
+    "dataset": {
+        "label": "資料集處理環境",
+        "image": "powershare/workspace-datasci:1.0",
+        "status": "planned",
+        "entry": "jupyter",
+        "min_vram_mb": 4096,
+        "kind": "dataset",
+        "includes": ["pandas", "polars", "scikit-learn", "RAPIDS"],
+        "note": "以 JupyterLab 進入,可自行撰寫清理與特徵流程。",
+    },
+    "train": {
+        "label": "機器學習訓練環境",
+        "image": "powershare/workspace-pytorch:2.4-cu124",
+        "status": "planned",
+        "entry": "jupyter",
+        "min_vram_mb": 12288,
+        "kind": "train",
+        "includes": ["PyTorch 2.4", "CUDA 12.4", "transformers", "datasets"],
+        "note": "以 JupyterLab 進入,可自行撰寫訓練腳本與超參數。",
+    },
+    # 通用環境:不對應特定任務,適合自行開發
+    "pytorch": {
+        "label": "PyTorch 通用環境",
+        "image": "powershare/workspace-pytorch:2.4-cu124",
+        "status": "planned",
+        "entry": "jupyter",
+        "min_vram_mb": 8192,
+        "kind": None,
+        "includes": ["PyTorch 2.4", "CUDA 12.4"],
+        "note": "PyTorch 2.4、CUDA 12.4 與常用套件,以 JupyterLab 進入。",
+    },
+    "datasci": {
+        "label": "資料科學通用環境",
+        "image": "powershare/workspace-datasci:1.0",
+        "status": "planned",
+        "entry": "jupyter",
+        "min_vram_mb": 4096,
+        "kind": None,
+        "includes": ["pandas", "scikit-learn", "RAPIDS"],
+        "note": "pandas、scikit-learn、RAPIDS,以 JupyterLab 進入。",
+    },
+    "blender": {
+        "label": "Blender 通用環境",
+        "image": "powershare/workspace-blender:4.2",
+        "status": "planned",
+        "entry": "shell",
+        "min_vram_mb": 8192,
+        "kind": None,
+        "includes": ["Blender 4.2"],
         "note": "Blender 4.2 命令列環境,以終端機進入。",
     },
 }
+
+AVAILABLE_WORKSPACES = [key for key, item in WORKSPACES.items() if item["status"] == "available"]
 
 
 def task_catalog() -> list[dict]:
@@ -514,6 +602,7 @@ def task_catalog() -> list[dict]:
 
 
 def workspace_catalog() -> list[dict]:
+    """工作環境目錄。對應任務類型者帶 kind,通用環境的 kind 為 None。"""
     return [{"key": key, **workspace} for key, workspace in WORKSPACES.items()]
 ```
 
@@ -743,6 +832,9 @@ class Rental(models.Model):
     minutes = models.PositiveSmallIntegerField()        # 申請時數(分鐘)
     purpose = models.CharField(max_length=200, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED)
+    stage = models.CharField(max_length=20, default="等待可用設備")   # 建置與啟動進度
+    progress = models.FloatField(null=True, blank=True)
+    prepared = models.BooleanField(default=False)                # 領取時該環境是否已在機台備妥
     connect_url = models.CharField(max_length=300, blank=True)   # Agent 回報的連線位址
     connect_token = models.CharField(max_length=120, blank=True)  # 只給租借者,結束時清除
     connection = models.JSONField(default=dict)         # 通道型態與其他連線資訊
@@ -978,7 +1070,7 @@ class Event(models.Model):
 * **節點 token**:`Authorization: Bearer <token>`,由 `agent pair` 取得,只存雜湊,撤銷後立即失效。
 * 存取他人的工作、成果或設備一律回 `404 NOT_FOUND`。
 * `claim` 的 `assignment` 欄位:`{attempt_id, job_id, kind, profile, input_url, input_bytes, lease_seconds}`。
-* `rentals/claim` 的 `rental` 欄位:`{rental_id, workspace, image, entry, minutes, lease_seconds}`。
+* `rentals/claim` 的 `rental` 欄位:`{rental_id, workspace, kind, image, entry, prepare, minutes, lease_seconds}`。
 * 心跳的 `stop` 針對該次回報的項目:帶 `attempt_id` 時指工作,帶 `rental_id` 時指租借容器。
 
 ## 4.4 錯誤回傳格式
@@ -1011,7 +1103,8 @@ raise ApiError("超過每日上限", code="QUOTA_EXCEEDED", status_code=429)
 | `NODE_EXISTS` | 409 | 這張 GPU 已登錄過 |
 | `RENTAL_TOO_LONG` | 400 | 租借時數超過單次上限(§4.10) |
 | `RENTAL_ALREADY_OPEN` | 409 | 已有一段進行中的租借 |
-| `RENTAL_NOT_ACTIVE` | 409 | 該段租借已結束 |
+| `RENTAL_NOT_ACTIVE` | 409 | 該段工作階段已結束 |
+| `ENVIRONMENT_NOT_READY` | 400 | 該工作環境的映像尚未建置完成 |
 | `QUOTA_EXCEEDED` | 429 | 超過每日檔案上限或每日租借時數上限 |
 | `THROTTLED` | 429 | 登入嘗試次數過多 |
 | `SERVER_ERROR` | 500 | 未預期錯誤(DEBUG 關閉時不含細節) |
@@ -1384,11 +1477,11 @@ try {
 
 | 頁面 | 模組 | 端點與更新頻率 |
 |---|---|---|
-| 工作台 `/workbench/` | `workbench.js` | `pollState()` 每 2 秒 `/api/state`;任務選單由 `state.tasks` 產生,`planned` 不可選 |
+| 工作台 `/workbench/` | `workbench.js` | 每 3 秒同時取 `/api/state` 與 `/api/rentals`;環境選單由 `workspaces` 中帶 `kind` 者產生,並顯示建置進度與連線資訊 |
 | 我的設備 `/nodes/` | `nodes.js` | `pollState()`;`PATCH /api/nodes/{id}` 切換 `sharing` 與 `allow_rental` |
 | 儀表板 `/dashboard/` | `dashboard.js` | 每 5 秒 `/api/usage/summary`;曲線以內嵌 SVG 繪製,不使用外部圖表套件 |
 | 管理台 `/manage/` | `manage.js` | 每 10 秒 `/api/admin/overview`;`PATCH /api/admin/users/{id}` 核可與調整配額 |
-| 自由租借 `/rentals/` | `rentals.js` | 每 5 秒 `/api/rentals`;`POST /api/rentals` 申請、`/cancel` 結束 |
+| 自由租借 `/rentals/` | `rentals.js` | 每 5 秒 `/api/rentals`;只列 `kind` 為 null 的通用環境,並顯示所有工作階段紀錄 |
 | 即時看板 `/display/` | `display.js` | `pollState()`,大螢幕用 |
 | 服務說明 `/` | 無 | 公開頁面,純靜態內容 |
 
@@ -1413,17 +1506,40 @@ try {
 * `GET /api/usage/export` 以串流輸出 CSV,欄位固定為
   `day,node,gpu,busy_seconds,rented_seconds,idle_seconds,offline_seconds,gpu_seconds,jobs_completed,avg_utilization,peak_utilization`。
 
-## 4.10 互動式租借
+## 4.10 工作環境(互動式)
 
-固定任務之外的第二種使用方式:使用者取得一個限時的 GPU 容器自行操作。
-狀態機實作於 `core/rentals.py`,行為以 `tests/test_rentals.py` 為準。
+平台的**預設使用方式**:使用者選環境,平台自動建置,使用者進容器自行執行。
+工作台建立的任務環境與自由租借的通用環境共用同一套狀態機,實作於 `core/rentals.py`,
+行為以 `tests/test_rentals.py` 為準。
 
-| 項目 | 固定任務(§4.5) | 互動式租借 |
+**環境目錄**(`core/profiles.py` 的 `WORKSPACES`)
+
+| 鍵 | 對應任務 | 映像 | 進入方式 | 狀態 |
+|---|---|---|---|---|
+| `asr` | `asr` | `workspace-asr` | JupyterLab | 已開放 |
+| `upscale` | `upscale` | `workspace-upscale` | JupyterLab | 已開放 |
+| `render` / `animate` | 同名任務 | `workspace-blender` | 終端機 | 規劃中 |
+| `dataset` | `dataset` | `workspace-datasci` | JupyterLab | 規劃中 |
+| `train` | `train` | `workspace-pytorch` | JupyterLab | 規劃中 |
+| `pytorch` / `datasci` / `blender` | 無(通用) | 同上 | 依映像 | 規劃中 |
+
+帶 `kind` 的環境會出現在工作台;`kind` 為 `null` 的通用環境只出現在自由租借頁。
+未建置完成的環境送出時回 `ENVIRONMENT_NOT_READY`。
+
+**自動建置**
+
+* 領取時若該機台已通過對應任務的 CUDA 自我測試(`capabilities`),`prepared` 為 `true`,直接啟動容器。
+* 否則 `prepared` 為 `false`,派工內容帶 `prepare: true`,Agent 須先拉映像、下載模型並完成自我測試。
+* 建置與啟動進度由心跳的 `stage`/`progress` 回報,依序為
+  `建置環境` → `下載模型` → `自我測試` → `啟動容器` → `可以連線`,前端即時顯示。
+* 派工時**優先選擇已備妥該環境的工作階段**,使用者不必等待重新建置。
+
+| 項目 | 平台代跑(§4.5) | 工作環境 |
 |---|---|---|
-| 送出內容 | 檔案 | 時數與工作環境 |
+| 送出內容 | 檔案 | 環境與時數 |
 | 執行內容 | 平台定義的流程 | 使用者自行於容器內操作 |
 | 結束條件 | 工作完成 | 時數到期、使用者結束或機主收回 |
-| 中斷處理 | 自動重新排隊(最多三次) | 啟動中退回佇列;使用中標記 `failed`(容器狀態無法轉移) |
+| 中斷處理 | 自動重新排隊(最多三次) | 建置中退回佇列;使用中標記 `failed`(容器狀態無法轉移) |
 | 設備範圍 | 所有分享中的設備 | 另行開啟 `allow_rental` 的設備 |
 
 **限制**(`backend/config/settings.py`)
@@ -1434,12 +1550,14 @@ try {
 | `RENTAL_DAILY_MINUTES` | 240 | 每人每日租借時數合計上限 |
 | `RENTAL_START_SECONDS` | 180 | 設備領取後須在此秒數內回報可連線 |
 
-* 每人同時只能有一段未結束的租借。
-* 時數自 `ready` 回報起算,不含容器啟動時間。
+* 每人同時只能有一段未結束的工作階段(含工作台與自由租借)。
+* 時數自 `ready` 回報起算,**不含建置與啟動環境的時間**。
 * 結束時清除 `connect_url` 與 `connect_token`,權杖不再保留。
-* 租借期間該節點不再接受固定任務(`services.claim_job` 於領取時檢查)。
+* 工作階段期間該節點不再接受代跑的工作(`services.claim_job` 於領取時檢查)。
 
-**尚未完成**:機台端啟動容器與對外連線通道的方式待確認。
+**尚未完成**:機台端的自動建置與對外連線通道尚未實作。
+`workers/workspace-asr.Dockerfile` 與 `workspace-upscale.Dockerfile` 已定義映像內容(JupyterLab + 既有套件版本),
+但尚未於實機建置與實測;Agent 端仍需實作 `prepare: true` 時的建置流程與進度回報。
 校園機台位於 NAT 後方(§2.3),平台不會主動連入機台,連線須由機台端自行建立對外通道;
 候選方案與取捨見 [架構文件](docs/architecture.md)。在此之前,申請會停留在 `queued`。
 
@@ -1513,8 +1631,8 @@ try {
 
 | 機制 | 做法 | 對外說明 |
 |---|---|---|
-| 固定任務 | 任務類型與模型版本固定於任務目錄,使用者不能指定命令、映像或參數 | 平台上跑的是平台自己的程式,不是使用者上傳的程式 |
-| 互動式租借 | 機主須另行開啟 `allow_rental`;容器限時、到期自動回收,結束時清除連線權杖 | 願意開放自由操作的設備才會收到租借,且有時間上限 |
+| 平台代跑 | 任務類型與模型版本固定於任務目錄,使用者不能指定命令、映像或參數 | 代跑時執行的是平台自己的程式,不是使用者上傳的程式 |
+| 工作環境 | 只提供平台定義的映像;機主須另行開啟 `allow_rental`;容器限時、到期自動回收,結束時清除連線權杖 | 使用者只能在平台準備的環境內操作,且有時間上限 |
 | 容器隔離 | 無網路、唯讀根檔案系統、移除 Linux capabilities、禁止提權、限制 CPU/RAM/PID | 工作容器碰不到主機系統,也無法對外連線 |
 | GPU 分配 | 以 `--gpus` 指派整張 GPU 給單一工作獨占 | Docker 無法限制 GPU 使用率與顯示記憶體,因此不與他人共用同一張卡 |
 | 機主控制 | 網站分享開關與機台 `stop` 皆立即停止容器,檔案重新排隊 | 機主隨時可以收回設備,不必等工作結束 |
@@ -1577,13 +1695,14 @@ try {
 | 6 | 資源限制 | `docker stats` 可見容器受限於 `AGENT_CPU_LIMIT` 與 `AGENT_MEM_LIMIT_GB` | 手動 `docker run` 驗證參數 |
 | 7 | 多 GPU 主機 | 每張卡以不同 `--dir` 與 `--gpu` 各自接單 | 單卡即可,多卡列為後續 |
 | 8 | 新增任務類型 | 依 §1.2 目錄補上容器與模型固定作業,`prepare` 通過自我測試後把 `status` 改為 `available` | 先完成一種(建議 `render`),其餘維持 `planned` |
-| 9 | 租借容器與通道 | Agent 實作 `rentals/claim` → 啟動映像 → `ready` → 心跳續約 → `ended`;決定對外通道方式並記錄於 §4.10 | 先於校內網路直連測試,對外通道列為待辦 |
+| 9 | 環境自動建置與通道 | Agent 實作 `rentals/claim` → (`prepare` 為 true 時)建置環境並回報 `stage`/`progress` → 啟動映像 → `ready` → 心跳續約 → `ended`;決定對外通道方式並記錄於 §4.10 | 先於校內網路直連測試,對外通道列為待辦 |
+| 10 | 互動式映像建置 | `workspace-asr` 與 `workspace-upscale` 於實機建置成功,JupyterLab 可用且能讀到掛載的模型 | 先完成一種環境 |
 
 ## 6.3 前端 / 儀表板負責人 — 擁有 `frontend/`
 
 | # | 工作項目 | 驗收條件 | 降級方案 |
 |---|---|---|---|
-| 1 | 登入與工作台(已完成) | 可登入、上傳批次、查看狀態、取消與重送、下載成果 | — |
+| 1 | 工作台(初步完成) | 可建立任務環境、顯示建置進度與連線資訊、結束環境;另保留上傳批次與成果下載 | — |
 | 2 | 設備頁(已完成) | 可取得配對碼、開關分享、查看平台設備狀態 | — |
 | 3 | 大螢幕(已完成) | 顯示各設備即時使用率與佇列統計 | — |
 | 4 | 上傳體驗 | 顯示上傳進度、拖放檔案、超過限制時即時提示 | 僅顯示送出後的結果 |
@@ -1641,7 +1760,7 @@ try {
      ↓
 8. 於 /dashboard/ 確認當日用量已累計,並匯出 CSV
      ↓
-9. 機主開啟「接受租借」→ 使用者於 /rentals/ 申請 → 取得連線資訊 → 結束租借
+9. 機主開啟「接受租借」→ 使用者於 /workbench/ 建立任務環境 → 看到建置進度 → 取得連線資訊 → 進去執行 → 結束
      ↓
 10. 檢視 AI 生成的使用報告
 ```
@@ -1656,7 +1775,7 @@ try {
 | 多機同時執行 | 兩個帳號送件時三台設備同時執行 | 兩台設備,於報告註明 |
 | 對外部署 | 經 HTTPS tunnel 完成一次完整流程 | — |
 | 用量與儀表板 | 執行後儀表板的狀態、使用率與當日用量正確,CSV 可匯出 | 以測試資料驗證彙整邏輯 |
-| 互動式租借 | 申請 → 設備啟動 → 連線 → 到期回收全程正確 | 僅驗收平台端(申請、排隊、配額),機台端列為待辦 |
+| 工作環境 | 建立 → 自動建置(進度可見)→ 連線 → 到期回收全程正確 | 僅驗收平台端(建立、排隊、進度、配額),機台端列為待辦 |
 | 任務目錄 | 規劃中的任務在前端標示「準備中」且無法送出 | — |
 | 誠實標示 | 驗收表區分已驗證與待驗證,模擬素材有標示 | — |
 

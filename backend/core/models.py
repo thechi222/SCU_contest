@@ -222,6 +222,9 @@ class Rental(models.Model):
     minutes = models.PositiveSmallIntegerField()        # 申請時數(分鐘)
     purpose = models.CharField(max_length=200, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED)
+    stage = models.CharField(max_length=20, default="等待可用設備")   # 建置與啟動進度
+    progress = models.FloatField(null=True, blank=True)
+    prepared = models.BooleanField(default=False)                # 領取時該環境是否已在機台備妥
     connect_url = models.CharField(max_length=300, blank=True)   # Agent 回報的連線位址
     connect_token = models.CharField(max_length=120, blank=True)  # 只給租借者,結束時清除
     connection = models.JSONField(default=dict)         # 通道型態與其他連線資訊

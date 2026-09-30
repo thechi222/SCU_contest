@@ -6,10 +6,12 @@ from core.models import (
     Artifact, Batch, Event, Job, Node, Rental, User, normalize_student_id,
 )
 from core.validators import validate_account_id, validate_person_name
-from core.profiles import AVAILABLE_KINDS, PROFILES, TASKS, WORKSPACES
+from core.profiles import AVAILABLE_KINDS, AVAILABLE_WORKSPACES, PROFILES, TASKS, WORKSPACES
 
 KIND_CHOICES = list(PROFILES)        # 已定義的任務類型
 STAGES = ["下載輸入", "載入模型", "GPU 運算中", "上傳結果"]
+# 互動式工作階段的建置與啟動進度(README §4.10)
+RENTAL_STAGES = ["建置環境", "下載模型", "自我測試", "啟動容器", "可以連線"]
 
 
 def validate_capabilities(value):
@@ -218,7 +220,7 @@ class HeartbeatSerializer(serializers.Serializer):
     capabilities = serializers.JSONField(required=False, default=dict, validators=[validate_capabilities])
     environment = serializers.JSONField(required=False, default=dict)
     telemetry = serializers.JSONField(required=False, default=dict)
-    stage = serializers.ChoiceField(choices=STAGES, required=False, allow_null=True)
+    stage = serializers.ChoiceField(choices=STAGES + RENTAL_STAGES, required=False, allow_null=True)
     progress = serializers.FloatField(min_value=0, max_value=1, required=False, allow_null=True)
 
 
@@ -264,13 +266,23 @@ class RentalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rental
         fields = [
-            "id", "workspace", "workspace_label", "image", "minutes", "purpose", "status",
+            "id", "workspace", "workspace_label", "image", "entry", "includes",
+            "minutes", "purpose", "status", "stage", "progress", "prepared",
             "node_name", "connect_url", "connect_token", "connection", "seconds_left",
             "created_at", "started_at", "expires_at", "ended_at", "end_reason",
         ]
 
+    entry = serializers.SerializerMethodField()
+    includes = serializers.SerializerMethodField()
+
     def get_workspace_label(self, rental) -> str:
         return WORKSPACES.get(rental.workspace, {}).get("label", rental.workspace)
+
+    def get_entry(self, rental) -> str:
+        return WORKSPACES.get(rental.workspace, {}).get("entry", "shell")
+
+    def get_includes(self, rental) -> list:
+        return WORKSPACES.get(rental.workspace, {}).get("includes", [])
 
     def get_seconds_left(self, rental) -> float | None:
         if rental.status != Rental.Status.ACTIVE or rental.expires_at is None:
@@ -280,17 +292,23 @@ class RentalSerializer(serializers.ModelSerializer):
 
 class RentalCreateSerializer(serializers.Serializer):
     workspace = serializers.ChoiceField(choices=list(WORKSPACES))
+    # 可送出的環境另於 rentals.request_rental 檢查(未建置完成的環境回 ENVIRONMENT_NOT_READY)
     minutes = serializers.IntegerField(min_value=10, max_value=settings.RENTAL_MAX_MINUTES)
     purpose = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
 
 
 class RentalAssignmentSerializer(serializers.Serializer):
-    """POST /api/agent/rentals/claim 的回傳內容,欄位名稱須與 Agent 端一致。"""
+    """POST /api/agent/rentals/claim 的回傳內容,欄位名稱須與 Agent 端一致。
+
+    `prepare` 為 true 時,Agent 須先建置該環境(拉映像、下載模型、CUDA 自我測試)再啟動容器。
+    """
 
     rental_id = serializers.UUIDField()
     workspace = serializers.CharField()
+    kind = serializers.CharField(allow_null=True)
     image = serializers.CharField()
     entry = serializers.CharField()
+    prepare = serializers.BooleanField()
     minutes = serializers.IntegerField()
     lease_seconds = serializers.FloatField()
 

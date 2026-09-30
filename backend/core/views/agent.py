@@ -85,7 +85,9 @@ class HeartbeatView(AgentAPIView):
                 node, payload["attempt_id"], payload.get("stage"), payload.get("progress"),
             )
         elif payload.get("rental_id"):
-            stop = not rental_service.renew_lease(node, payload["rental_id"])
+            stop = not rental_service.renew_lease(
+                node, payload["rental_id"], payload.get("stage"), payload.get("progress"),
+            )
 
         usage.record_sample(
             node,
@@ -186,8 +188,10 @@ class RentalClaimView(AgentAPIView):
         assignment = {
             "rental_id": rental.id,
             "workspace": rental.workspace,
+            "kind": profile.get("kind"),
             "image": rental.image,
             "entry": profile.get("entry", "shell"),
+            "prepare": not rental.prepared,     # true 時須先建置環境再啟動容器
             "minutes": rental.minutes,
             "lease_seconds": settings.LEASE_SECONDS,
         }

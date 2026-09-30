@@ -24,11 +24,13 @@ let workspaces = [];
 function describeWorkspace(key) {
   const workspace = workspaces.find((item) => item.key === key);
   if (!workspace) return "";
-  const planned = workspace.status === "planned" ? "(映像尚未建置完成)" : "";
+  const planned = workspace.status === "planned" ? "(映像尚未建置完成,暫不開放)" : "";
   return `${workspace.note}${planned} 最低顯示記憶體 ${Math.round(workspace.min_vram_mb / 1024)} GB。`;
 }
 
-function fillWorkspaces(list) {
+function fillWorkspaces(catalog) {
+  // 對應任務類型的環境在「工作台」建立;這裡只列通用開發環境
+  const list = catalog.filter((item) => !item.kind);
   if (workspaces.length === list.length) return;
   workspaces = list;
   workspaceSelect.replaceChildren(...list.map((workspace) => {
@@ -93,7 +95,8 @@ function currentCard(rental) {
     card.append(element("p", "note", "排隊中,等待開放互動式租借的設備空出來。"));
   }
   if (rental.status === "starting") {
-    card.append(element("p", "note", "設備正在啟動容器,請稍候。時數自可以連線時才開始計算。"));
+    card.append(element("p", "note",
+                        `設備正在${rental.stage};時數自可以連線時才開始計算。`));
   }
   if (rental.status === "active" && rental.connect_url) {
     const link = element("a", "rental-link", rental.connect_url);
@@ -119,6 +122,7 @@ function render(data) {
     `單次最長 ${data.limits.max_minutes} 分鐘,每日合計 ${data.limits.daily_minutes} 分鐘;` +
     `目前開放互動式租借的設備 ${data.nodes_open_to_rental} 台,排隊中 ${data.queue_length} 段。`;
 
+  // 工作台建立的任務環境也會出現在這裡,方便集中查看
   const open = data.rentals.filter((rental) => OPEN_STATUSES.includes(rental.status));
   currentBox.replaceChildren(
     ...(open.length ? open.map(currentCard) : [element("p", "empty", "目前沒有進行中的租借。")]),

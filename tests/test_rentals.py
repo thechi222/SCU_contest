@@ -17,7 +17,7 @@ def rental_node(make_node):
     return make_node(allow_rental=True)
 
 
-def make_rental(user, minutes=60, workspace="pytorch"):
+def make_rental(user, minutes=60, workspace="asr"):
     return rentals.request_rental(user, workspace, minutes, "專題實驗")
 
 
@@ -25,7 +25,7 @@ def test_request_creates_queued_rental(user):
     rental = make_rental(user)
 
     assert rental.status == Rental.Status.QUEUED
-    assert rental.image.startswith("powershare/workspace-pytorch")
+    assert rental.image.startswith("powershare/workspace-asr")
 
 
 def test_one_open_rental_per_user(user):
@@ -147,7 +147,7 @@ def test_rental_endpoints_for_users(client, user):
     client.force_login(user)
 
     created = client.post(
-        "/api/rentals", {"workspace": "pytorch", "minutes": 30, "purpose": "測試"},
+        "/api/rentals", {"workspace": "asr", "minutes": 30, "purpose": "測試"},
         content_type="application/json",
     )
     assert created.status_code == 201
@@ -169,3 +169,42 @@ def test_rental_rejects_unknown_workspace(client, user):
     )
 
     assert response.status_code == 400 and response.json()["code"] == "VALIDATION_ERROR"
+
+
+def test_rental_rejects_environment_that_is_not_built(client, user):
+    client.force_login(user)
+
+    response = client.post(
+        "/api/rentals", {"workspace": "train", "minutes": 30}, content_type="application/json",
+    )
+
+    assert response.status_code == 400 and response.json()["code"] == "ENVIRONMENT_NOT_READY"
+
+
+def test_node_with_the_environment_ready_is_preferred(make_node, make_user, user):
+    """已通過該任務自我測試的機台直接啟動;其他機台要先建置環境。"""
+    ready = make_node(token="ready-node", kinds=("asr",), allow_rental=True)
+    make_rental(user, workspace="asr")
+
+    claimed = rentals.claim_rental(ready)
+
+    assert claimed.prepared is True and claimed.stage == "啟動容器"
+
+
+def test_node_without_the_environment_builds_it_first(make_node, user):
+    blank = make_node(token="blank-node", kinds=("upscale",), allow_rental=True)
+    make_rental(user, workspace="asr")
+
+    claimed = rentals.claim_rental(blank)
+
+    assert claimed.prepared is False and claimed.stage == "建置環境"
+
+
+def test_heartbeat_reports_build_progress(rental_node, user):
+    make_rental(user, workspace="asr")
+    rental = rentals.claim_rental(rental_node)
+
+    assert rentals.renew_lease(rental_node, rental.id, "下載模型", 0.4) is True
+
+    rental.refresh_from_db()
+    assert rental.stage == "下載模型" and rental.progress == 0.4

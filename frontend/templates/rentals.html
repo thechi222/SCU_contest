@@ -7,13 +7,14 @@
 {% block content %}
 <h1>自由租借 GPU</h1>
 <p class="lead-text">
-  固定任務之外的另一種用法:向平台借一台閒置的 GPU 機器,在限定時間內進入容器自行操作,
-  適合需要自己寫程式、調參數或跑實驗的情況。容器與時數由平台控制,到期後自動回收。
+  借一台閒置的 GPU 機器,在限定時間內進入通用開發環境自行操作,適合自己寫程式或跑實驗。
+  若只是要用平台既有的任務環境(語音辨識、影像放大等),請直接到
+  <a href="{% url 'workbench' %}">工作台</a> 建立,環境會自動備妥。
 </p>
 
 <div class="notice">
   <strong>目前狀態:初步版本。</strong>
-  平台端的申請、排隊、時數與回收流程已可運作;機台端啟動容器與對外連線通道的方式仍在確認,
+  平台端的申請、排隊、建置進度、時數與回收流程已可運作;機台端建置容器與對外連線通道的方式仍在確認,
   申請送出後會停留在「排隊中」。連線方式確定前請勿用於有時效的課程或研究工作。
 </div>
 
@@ -28,7 +29,7 @@
 
   <div class="side-nav-content">
     <section id="apply" class="card">
-      <h2>提出申請</h2>
+      <h2>提出申請(通用環境)</h2>
       <form id="rental-form" class="form-grid">
         <label>工作環境
           <select name="workspace" id="rental-workspace" required></select>

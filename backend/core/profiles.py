@@ -71,31 +71,102 @@ AVAILABLE_KINDS = [kind for kind, task in TASKS.items() if task["status"] == "av
 
 
 WORKSPACES = {
-    "pytorch": {
-        "label": "PyTorch 訓練環境",
-        "image": "powershare/workspace-pytorch:2.4-cu124",
-        "status": "planned",
-        "entry": "jupyter",
-        "min_vram_mb": 8192,
-        "note": "PyTorch 2.4、CUDA 12.4 與常用套件,以 JupyterLab 進入。",
-    },
-    "datasci": {
-        "label": "資料科學環境",
-        "image": "powershare/workspace-datasci:1.0",
-        "status": "planned",
+    # 任務環境:與 TASKS 的任務類型一一對應,映像內已備妥該任務的工具與模型,
+    # 使用者進去之後自行執行,不必自己安裝環境(README §4.10)。
+    "asr": {
+        "label": "語音辨識環境",
+        "image": "powershare/workspace-asr:whisper-small-v1",
+        "status": "available",
         "entry": "jupyter",
         "min_vram_mb": 4096,
-        "note": "pandas、scikit-learn、RAPIDS,以 JupyterLab 進入。",
+        "kind": "asr",
+        "includes": ["faster-whisper", "whisper-small 權重", "ffmpeg"],
+        "note": "已放好 whisper-small 權重與 ffmpeg,可直接轉檔與調整辨識參數。",
     },
-    "blender": {
-        "label": "Blender 算圖環境",
+    "upscale": {
+        "label": "影像放大環境",
+        "image": "powershare/workspace-upscale:realesrgan-x2-v1",
+        "status": "available",
+        "entry": "jupyter",
+        "min_vram_mb": 4096,
+        "kind": "upscale",
+        "includes": ["Real-ESRGAN", "RealESRGAN_x2plus 權重", "Pillow"],
+        "note": "已放好 Real-ESRGAN 權重,可自行選倍率與批次處理方式。",
+    },
+    "render": {
+        "label": "3D 算圖環境",
         "image": "powershare/workspace-blender:4.2",
         "status": "planned",
         "entry": "shell",
         "min_vram_mb": 8192,
+        "kind": "render",
+        "includes": ["Blender 4.2", "Cycles GPU"],
+        "note": "Blender 命令列環境,可自行指定場景、取樣數與輸出格式。",
+    },
+    "animate": {
+        "label": "動畫算圖環境",
+        "image": "powershare/workspace-blender:4.2",
+        "status": "planned",
+        "entry": "shell",
+        "min_vram_mb": 8192,
+        "kind": "animate",
+        "includes": ["Blender 4.2", "Cycles GPU", "ffmpeg"],
+        "note": "與 3D 算圖同一個映像,另附影片合成工具。",
+    },
+    "dataset": {
+        "label": "資料集處理環境",
+        "image": "powershare/workspace-datasci:1.0",
+        "status": "planned",
+        "entry": "jupyter",
+        "min_vram_mb": 4096,
+        "kind": "dataset",
+        "includes": ["pandas", "polars", "scikit-learn", "RAPIDS"],
+        "note": "以 JupyterLab 進入,可自行撰寫清理與特徵流程。",
+    },
+    "train": {
+        "label": "機器學習訓練環境",
+        "image": "powershare/workspace-pytorch:2.4-cu124",
+        "status": "planned",
+        "entry": "jupyter",
+        "min_vram_mb": 12288,
+        "kind": "train",
+        "includes": ["PyTorch 2.4", "CUDA 12.4", "transformers", "datasets"],
+        "note": "以 JupyterLab 進入,可自行撰寫訓練腳本與超參數。",
+    },
+    # 通用環境:不對應特定任務,適合自行開發
+    "pytorch": {
+        "label": "PyTorch 通用環境",
+        "image": "powershare/workspace-pytorch:2.4-cu124",
+        "status": "planned",
+        "entry": "jupyter",
+        "min_vram_mb": 8192,
+        "kind": None,
+        "includes": ["PyTorch 2.4", "CUDA 12.4"],
+        "note": "PyTorch 2.4、CUDA 12.4 與常用套件,以 JupyterLab 進入。",
+    },
+    "datasci": {
+        "label": "資料科學通用環境",
+        "image": "powershare/workspace-datasci:1.0",
+        "status": "planned",
+        "entry": "jupyter",
+        "min_vram_mb": 4096,
+        "kind": None,
+        "includes": ["pandas", "scikit-learn", "RAPIDS"],
+        "note": "pandas、scikit-learn、RAPIDS,以 JupyterLab 進入。",
+    },
+    "blender": {
+        "label": "Blender 通用環境",
+        "image": "powershare/workspace-blender:4.2",
+        "status": "planned",
+        "entry": "shell",
+        "min_vram_mb": 8192,
+        "kind": None,
+        "includes": ["Blender 4.2"],
         "note": "Blender 4.2 命令列環境,以終端機進入。",
     },
 }
+
+AVAILABLE_WORKSPACES = [key for key, item in WORKSPACES.items() if item["status"] == "available"]
 
 
 def task_catalog() -> list[dict]:
@@ -104,4 +175,5 @@ def task_catalog() -> list[dict]:
 
 
 def workspace_catalog() -> list[dict]:
+    """工作環境目錄。對應任務類型者帶 kind,通用環境的 kind 為 None。"""
     return [{"key": key, **workspace} for key, workspace in WORKSPACES.items()]

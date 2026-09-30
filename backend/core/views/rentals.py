@@ -15,10 +15,24 @@ class RentalListCreateView(APIView):
 
     def get(self, request):
         mine = Rental.objects.filter(user=request.user).select_related("node").order_by("-created_at")[:20]
-        available = Node.objects.filter(allow_rental=True, revoked=False, sharing=True).count()
+        open_nodes = list(Node.objects.filter(allow_rental=True, revoked=False, sharing=True))
+        available = len(open_nodes)
+        # 每個環境標示目前有幾台設備已備妥(不必等建置)與幾台可以接
+        workspaces = [
+            {
+                **workspace,
+                "ready_nodes": sum(
+                    1 for node in open_nodes if rental_service.environment_ready(node, workspace["key"])
+                ),
+                "capable_nodes": sum(
+                    1 for node in open_nodes if rental_service.node_can_run(node, workspace["key"])
+                ),
+            }
+            for workspace in workspace_catalog()
+        ]
         return Response({
             "rentals": RentalSerializer(mine, many=True).data,
-            "workspaces": workspace_catalog(),
+            "workspaces": workspaces,
             "limits": {
                 "max_minutes": settings.RENTAL_MAX_MINUTES,
                 "daily_minutes": settings.RENTAL_DAILY_MINUTES,
