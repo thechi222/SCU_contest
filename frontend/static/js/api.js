@@ -1,8 +1,18 @@
 // 所有 API 呼叫一律經由本模組(README §4.7)
 
+/** 欄位驗證錯誤的 detail 是 {欄位: [訊息]},攤平成一句可直接顯示的文字。 */
+function readableDetail(detail) {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) return detail.join(" ");
+  if (detail && typeof detail === "object") {
+    return Object.values(detail).flat().join(" ");
+  }
+  return "發生未預期的錯誤";
+}
+
 export class ApiError extends Error {
   constructor(status, detail, code) {
-    super(typeof detail === "string" ? detail : JSON.stringify(detail));
+    super(readableDetail(detail));
     this.status = status;
     this.detail = detail;
     this.code = code;

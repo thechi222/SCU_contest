@@ -40,9 +40,14 @@ function describeEnvironment() {
     sessionNote.textContent = "";
     return;
   }
-  const ready = item.ready_nodes
-    ? `目前 ${item.ready_nodes} 台設備已備妥此環境,可直接開始`
-    : `目前沒有設備預先備妥,平台會在領到的設備上自動建置(需要幾分鐘)`;
+  let ready;
+  if (item.status !== "available") {
+    ready = "此環境的映像尚在建置,目前無法建立";
+  } else if (item.ready_nodes) {
+    ready = `目前 ${item.ready_nodes} 台設備已備妥此環境,可直接開始`;
+  } else {
+    ready = "目前沒有設備預先備妥,平台會在領到的設備上自動建置(需要幾分鐘)";
+  }
   sessionNote.textContent =
     `內含 ${item.includes.join("、")};以${ENTRY_TEXT[item.entry] ?? item.entry}進入。${ready}。`;
 }
@@ -53,10 +58,9 @@ function fillEnvironments(catalog) {
   if (environments.length !== taskEnvironments.length) {
     environments = taskEnvironments;
     workspaceSelect.replaceChildren(...taskEnvironments.map((item) => {
-      const option = element("option", null,
-                             item.status === "available" ? item.label : `${item.label}(準備中)`);
+      // 所有環境一致呈現;尚未建置完成者的說明放在選單下方,送出時由後端擋下
+      const option = element("option", null, item.label);
       option.value = item.key;
-      option.disabled = item.status !== "available";
       return option;
     }));
     const first = taskEnvironments.find((item) => item.status === "available");
@@ -184,10 +188,9 @@ function fillKinds(catalog) {
   if (tasks.length === catalog.length) return;
   tasks = catalog;
   kindSelect.replaceChildren(...catalog.map((task) => {
-    const option = element("option", null,
-                           task.status === "available" ? task.label : `${task.label}(準備中)`);
+    // 與上方的環境選單一致;尚未開放的任務由後端於送出時擋下
+    const option = element("option", null, task.label);
     option.value = task.kind;
-    option.disabled = task.status !== "available";
     return option;
   }));
   const first = catalog.find((task) => task.status === "available");
@@ -197,9 +200,13 @@ function fillKinds(catalog) {
 
 function describeKind() {
   const task = tasks.find((item) => item.kind === kindSelect.value);
-  kindNote.textContent = task
-    ? `輸入:${task.inputs};成果:${task.artifacts.join("、")}。${task.note}`
-    : "";
+  if (!task) {
+    kindNote.textContent = "";
+    return;
+  }
+  const status = task.status === "available" ? "" : "此任務的容器尚在建置,目前無法送出。";
+  kindNote.textContent =
+    `輸入:${task.inputs};成果:${task.artifacts.join("、")}。${task.note}${status}`;
 }
 
 kindSelect.addEventListener("change", describeKind);

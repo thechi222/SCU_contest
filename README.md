@@ -1477,7 +1477,7 @@ try {
 
 | 頁面 | 模組 | 端點與更新頻率 |
 |---|---|---|
-| 工作台 `/workbench/` | `workbench.js` | 每 3 秒同時取 `/api/state` 與 `/api/rentals`;環境選單由 `workspaces` 中帶 `kind` 者產生,並顯示建置進度與連線資訊 |
+| 工作台 `/workbench/` | `workbench.js` | 每 3 秒同時取 `/api/state` 與 `/api/rentals`;環境選單由 `workspaces` 中帶 `kind` 者產生(各項一致呈現,尚未建置完成者於選單下方說明,送出時由後端擋下),並顯示建置進度與連線資訊 |
 | 我的設備 `/nodes/` | `nodes.js` | `pollState()`;`PATCH /api/nodes/{id}` 切換 `sharing` 與 `allow_rental` |
 | 儀表板 `/dashboard/` | `dashboard.js` | 每 5 秒 `/api/usage/summary`;曲線以內嵌 SVG 繪製,不使用外部圖表套件 |
 | 管理台 `/manage/` | `manage.js` | 每 10 秒 `/api/admin/overview`;`PATCH /api/admin/users/{id}` 核可與調整配額 |
